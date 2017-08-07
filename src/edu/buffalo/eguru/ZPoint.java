@@ -4,7 +4,12 @@ import java.awt.Point;
 
 public class ZPoint extends Point {
 
+	// used for selection and hence deletion
 	boolean isSelected = false;
+	
+	//true if point is part of FBD else false
+	boolean isCorrect = false;
+	
 	int cutCounter;
 	public ZPoint(int x, int y, int cutC) {
 		this.setLocation(x, y);
@@ -30,6 +35,14 @@ public class ZPoint extends Point {
 
 	public void setCutCounter(int cutCounter) {
 		this.cutCounter = cutCounter;
+	}
+
+	public boolean isCorrect() {
+		return isCorrect;
+	}
+
+	public void setCorrect(boolean isCorrect) {
+		this.isCorrect = isCorrect;
 	}
 	
 	

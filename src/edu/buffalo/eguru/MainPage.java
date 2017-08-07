@@ -1,5 +1,6 @@
 package edu.buffalo.eguru;
 
+import java.awt.BasicStroke;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -10,6 +11,7 @@ import java.awt.Image;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
+import java.awt.Stroke;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -60,10 +62,13 @@ public class MainPage {
 	int current_mode = MODE_NONE;
 	private Image scissor = null;
 	int cutCount = 1;
-	
-	JButton deleteCuts, deleteAll;
+
+	JButton deleteCuts, deleteAll, restartFBD;
 
 	ArrayList<ZPoint> cutsList = new ArrayList<ZPoint>();
+
+	Point fbdStart;
+	Point fbdRecent;
 
 	public JComponent getGui() {
 		if (gui == null) {
@@ -109,16 +114,17 @@ public class MainPage {
 
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				for(Iterator<ZPoint> iterator = cutsList.iterator(); iterator.hasNext();) {
-					ZPoint p = iterator.next();					
-					if(p.isSelected) {
+				for (Iterator<ZPoint> iterator = cutsList.iterator(); iterator.hasNext();) {
+					ZPoint p = iterator.next();
+					if (p.isSelected) {
 						Graphics2D g = canvasImage.createGraphics();
-						g.drawImage(originalImage, p.x-15, p.y-25, p.x+16, p.y+16, p.x-15, p.y-25, p.x+16, p.y+16, null);
+						g.drawImage(originalImage, p.x - 15, p.y - 25, p.x + 16, p.y + 16, p.x - 15, p.y - 25, p.x + 16,
+								p.y + 16, null);
 						g.dispose();
 						iterator.remove();
-					
+
 					}
-					
+
 				}
 				imageLabel.repaint();
 			}
@@ -133,12 +139,13 @@ public class MainPage {
 
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				for(Iterator<ZPoint> iterator = cutsList.iterator(); iterator.hasNext();) {
-					ZPoint p = iterator.next();					
-						Graphics2D g = canvasImage.createGraphics();
-						g.drawImage(originalImage, p.x-15, p.y-25, p.x+16, p.y+16, p.x-15, p.y-25, p.x+16, p.y+16, null);
-						g.dispose();
-						iterator.remove();					
+				for (Iterator<ZPoint> iterator = cutsList.iterator(); iterator.hasNext();) {
+					ZPoint p = iterator.next();
+					Graphics2D g = canvasImage.createGraphics();
+					g.drawImage(originalImage, p.x - 15, p.y - 25, p.x + 16, p.y + 16, p.x - 15, p.y - 25, p.x + 16,
+							p.y + 16, null);
+					g.dispose();
+					iterator.remove();
 				}
 				cutCount = 1;
 				imageLabel.repaint();
@@ -148,20 +155,43 @@ public class MainPage {
 
 		// Start FBD
 
-		JButton restartFBD = new JButton("Restart FBD");
+		restartFBD = new JButton("Restart FBD");
 		restartFBD.setMnemonic('r');
 		restartFBD.setToolTipText("Restart Free Body Diagram");
 		restartFBD.addActionListener(new ActionListener() {
 
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				// TODO Auto-generated method stub
+				Graphics2D g = canvasImage.createGraphics();
+				g.drawImage(originalImage, 0, 0, canvasImage.getWidth(), canvasImage.getHeight(),0, 0, canvasImage.getWidth(), canvasImage.getHeight(), null);
+				for(ZPoint p: cutsList) {
+					if(p.isCorrect()) {
+//						System.out.println(p.getCutCounter());
+						p.setCorrect(false);
+					}
+					g.drawImage(scissor, p.x - 15, p.y - 15, null);
+					g.setColor(Color.BLACK);
+					g.drawString(Integer.toString(p.getCutCounter()), p.x - 15, p.y - 15);
+					
+					
+				}
+				g.dispose();
+				imageLabel.repaint();
+				fbdStart = null;
+				fbdRecent = null;
+				
+				// has to remove all listeners first before addding, adding a listener twice causes problems
+				for (MouseListener m : imageLabel.getMouseListeners()) {
+					imageLabel.removeMouseListener(m);
+				}
 
+				imageLabel.addMouseListener(new fbdModeListener());
 			}
 		});
 
 		deleteCuts.setEnabled(false);
 		deleteAll.setEnabled(false);
+		restartFBD.setEnabled(false);
 		tb.add(deleteCuts);
 		tb.addSeparator();
 		tb.add(deleteAll);
@@ -186,7 +216,7 @@ public class MainPage {
 				FileNameExtensionFilter ff = new FileNameExtensionFilter("Image files",
 						ImageIO.getReaderFileSuffixes());
 				ch.setFileFilter(ff);
-				int result = ch.showSaveDialog(gui);
+				int result = ch.showOpenDialog(gui);
 				if (result == JFileChooser.APPROVE_OPTION) {
 					try {
 						BufferedImage bi = ImageIO.read(ch.getSelectedFile());
@@ -256,7 +286,8 @@ public class MainPage {
 				statusLabel.setText("Mode: None");
 				deleteCuts.setEnabled(false);
 				deleteAll.setEnabled(false);
-				
+				restartFBD.setEnabled(false);
+
 				for (MouseListener m : imageLabel.getMouseListeners()) {
 					imageLabel.removeMouseListener(m);
 				}
@@ -273,6 +304,7 @@ public class MainPage {
 				statusLabel.setText("Mode: Drawing Cuts");
 				deleteCuts.setEnabled(false);
 				deleteAll.setEnabled(false);
+				restartFBD.setEnabled(false);
 				// remove all mouselisteners first
 				for (MouseListener m : imageLabel.getMouseListeners()) {
 					imageLabel.removeMouseListener(m);
@@ -292,6 +324,7 @@ public class MainPage {
 				statusLabel.setText("Mode: Cuts Selection");
 				deleteCuts.setEnabled(true);
 				deleteAll.setEnabled(true);
+				restartFBD.setEnabled(false);
 
 				// remove all mouselisteners first
 				for (MouseListener m : imageLabel.getMouseListeners()) {
@@ -312,7 +345,8 @@ public class MainPage {
 				statusLabel.setText("Mode: Define FBD");
 				deleteCuts.setEnabled(false);
 				deleteAll.setEnabled(false);
-				
+				restartFBD.setEnabled(true);
+
 				for (MouseListener m : imageLabel.getMouseListeners()) {
 					imageLabel.removeMouseListener(m);
 				}
@@ -420,7 +454,7 @@ public class MainPage {
 		}
 
 	}
-	
+
 	class selectionModeListener extends MouseAdapter {
 
 		@Override
@@ -429,18 +463,19 @@ public class MainPage {
 			for (ZPoint p : cutsList) {
 				Rectangle clickThresholdRectangle = new Rectangle(p.x - 15, p.y - 15, 30, 30);
 				if (clickThresholdRectangle.contains(clickedPoint)) {
-					if(!p.isSelected()) {
+					if (!p.isSelected()) {
 						Graphics2D g = canvasImage.createGraphics();
 						g.setColor(Color.red);
-//						g.drawImage(originalImage, p.x-15, p.y-25, p.x+15, p.y+15, p.x-15, p.y-25, p.x+15, p.y+15, null);
+						// g.drawImage(originalImage, p.x-15, p.y-25, p.x+15,
+						// p.y+15, p.x-15, p.y-25, p.x+15, p.y+15, null);
 						g.drawRect(p.x - 15, p.y - 15, 30, 30);
 						g.dispose();
 						imageLabel.repaint();
 						p.setSelected(true);
-					}
-					else {
+					} else {
 						Graphics2D g = canvasImage.createGraphics();
-						g.drawImage(originalImage, p.x-15, p.y-15, p.x+16, p.y+16, p.x-15, p.y-15, p.x+16, p.y+16, null);
+						g.drawImage(originalImage, p.x - 15, p.y - 15, p.x + 16, p.y + 16, p.x - 15, p.y - 15, p.x + 16,
+								p.y + 16, null);
 						g.drawImage(scissor, p.x - 15, p.y - 15, null);
 						g.dispose();
 						imageLabel.repaint();
@@ -455,27 +490,43 @@ public class MainPage {
 
 	}
 
-
 	class fbdModeListener extends MouseAdapter {
 
 		@Override
 		public void mouseClicked(MouseEvent e) {
-//			Point clickedPoint = e.getPoint();
-//			for (ZPoint p : cutsList) {
-//				Rectangle clickThresholdRectangle = new Rectangle(p.x - 15, p.y - 15, 30, 30);
-//				if (clickThresholdRectangle.contains(clickedPoint)) {
-//					Graphics2D g = canvasImage.createGraphics();
-//					g.setColor(Color.red);
-//					g.drawRect(p.x - 15, p.y - 15, 30, 30);
-//					g.dispose();
-//					imageLabel.repaint();
-//
-//				}
-//			}
+			Point clickedPoint = e.getPoint();
+			for (ZPoint p : cutsList) {
+				Rectangle clickThresholdRectangle = new Rectangle(p.x - 15, p.y - 15, 30, 30);
+				if (clickThresholdRectangle.contains(clickedPoint)) {
+					if(fbdStart != null && fbdStart == p) {
+						for (MouseListener m : imageLabel.getMouseListeners()) {
+							imageLabel.removeMouseListener(m);
+						}
+					}
+					if (fbdStart == null) {
+						fbdStart = p;
+					}
+					Graphics2D g = canvasImage.createGraphics();
+					g.setColor(Color.green);
+					g.drawRect(p.x - 15, p.y - 15, 30, 30);
+					if (fbdRecent != null) {
+						Stroke dashed = new BasicStroke(3, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0,
+								new float[] { 9 }, 0);
+						g.setStroke(dashed);
+						g.setColor(Color.black);
+						g.drawLine(fbdRecent.x, fbdRecent.y, p.x, p.y);
+					}
+					p.setCorrect(true);
+					fbdRecent = p;
+					g.dispose();
+					imageLabel.repaint();
+					
+
+				}
+			}
 			super.mouseClicked(e);
 		}
 
 	}
-
 
 }
