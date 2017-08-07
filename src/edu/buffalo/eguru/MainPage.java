@@ -19,6 +19,7 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.awt.geom.Line2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileFilter;
@@ -28,6 +29,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 
 import javax.imageio.ImageIO;
+import javax.sound.sampled.Line;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JComponent;
@@ -71,6 +73,11 @@ public class MainPage {
 
 	Point fbdStart;
 	Point fbdRecent;
+	ZPoint firstPoint, secondPoint;
+	
+	ArrayList<Line2D> lineList = new ArrayList<Line2D>();
+	
+//	Line2D l = new Line2D.Double();	
 
 	public JComponent getGui() {
 		if (gui == null) {
@@ -242,9 +249,16 @@ public class MainPage {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				StringBuilder sb = new StringBuilder();
+				sb.append("Coordinates:\n");
 				for (ZPoint p : cutsList) {
 					sb.append(p.x + "," + p.y + "," + p.isCorrect() + "\n");
 				}
+				sb.append("End Coordinates\n");
+				sb.append("Lines:\n");
+				for(Line2D l: lineList) {
+					sb.append((int)l.getX1()+","+(int)l.getY1()+"|"+(int)l.getX2()+","+(int)l.getY2()+"\n");
+				}
+				sb.append("End Lines");
 
 				File temp = null;
 				JFileChooser chooser = new JFileChooser();
@@ -276,6 +290,9 @@ public class MainPage {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				// TODO Auto-generated method stub
+				for(Line2D l: lineList) {
+					System.out.println("First: "+(int)l.getX1()+", "+l.getY1()+" Second: "+l.getX2()+", "+l.getY2());
+				}
 
 			}
 		});
@@ -532,16 +549,21 @@ public class MainPage {
 					}
 					if (fbdStart == null) {
 						fbdStart = p;
+						firstPoint = p;
 					}
 					Graphics2D g = canvasImage.createGraphics();
 					g.setColor(Color.green);
 					g.drawRect(p.x - 15, p.y - 15, 30, 30);
 					if (fbdRecent != null) {
+						secondPoint = p;
 						Stroke dashed = new BasicStroke(3, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0,
 								new float[] { 9 }, 0);
 						g.setStroke(dashed);
 						g.setColor(Color.black);
 						g.drawLine(fbdRecent.x, fbdRecent.y, p.x, p.y);
+						System.out.println("First: "+firstPoint.getCutCounter()+", Second: "+secondPoint.getCutCounter());
+						lineList.add(new Line2D.Double(firstPoint, secondPoint));
+						firstPoint = secondPoint;
 					}
 					p.setCorrect(true);
 					fbdRecent = p;
