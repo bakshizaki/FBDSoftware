@@ -15,12 +15,14 @@ import java.awt.Stroke;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileFilter;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -163,24 +165,25 @@ public class MainPage {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				Graphics2D g = canvasImage.createGraphics();
-				g.drawImage(originalImage, 0, 0, canvasImage.getWidth(), canvasImage.getHeight(),0, 0, canvasImage.getWidth(), canvasImage.getHeight(), null);
-				for(ZPoint p: cutsList) {
-					if(p.isCorrect()) {
-//						System.out.println(p.getCutCounter());
+				g.drawImage(originalImage, 0, 0, canvasImage.getWidth(), canvasImage.getHeight(), 0, 0,
+						canvasImage.getWidth(), canvasImage.getHeight(), null);
+				for (ZPoint p : cutsList) {
+					if (p.isCorrect()) {
+						// System.out.println(p.getCutCounter());
 						p.setCorrect(false);
 					}
 					g.drawImage(scissor, p.x - 15, p.y - 15, null);
 					g.setColor(Color.BLACK);
 					g.drawString(Integer.toString(p.getCutCounter()), p.x - 15, p.y - 15);
-					
-					
+
 				}
 				g.dispose();
 				imageLabel.repaint();
 				fbdStart = null;
 				fbdRecent = null;
-				
-				// has to remove all listeners first before addding, adding a listener twice causes problems
+
+				// has to remove all listeners first before addding, adding a
+				// listener twice causes problems
 				for (MouseListener m : imageLabel.getMouseListeners()) {
 					imageLabel.removeMouseListener(m);
 				}
@@ -238,7 +241,31 @@ public class MainPage {
 
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				// TODO Auto-generated method stub
+				StringBuilder sb = new StringBuilder();
+				for (ZPoint p : cutsList) {
+					sb.append(p.x + "," + p.y + "," + p.isCorrect() + "\n");
+				}
+
+				File temp = null;
+				JFileChooser chooser = new JFileChooser();
+				chooser.setDialogTitle("Save As...");
+				chooser.setApproveButtonText("Save");
+				chooser.setApproveButtonMnemonic(KeyEvent.VK_S);
+				chooser.setApproveButtonToolTipText("Click me to save!");
+
+				do {
+					if (chooser.showSaveDialog(frame) != JFileChooser.APPROVE_OPTION)
+						return;
+					temp = chooser.getSelectedFile();
+					if (!temp.exists())
+						break;
+					if (JOptionPane.showConfirmDialog(frame,
+							"<html>" + temp.getPath() + " already exists.<br>Do you want to replace it?<html>",
+							"Save As", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION)
+						break;
+				} while (true);
+				
+				saveFile(temp, sb.toString());
 
 			}
 		});
@@ -498,7 +525,7 @@ public class MainPage {
 			for (ZPoint p : cutsList) {
 				Rectangle clickThresholdRectangle = new Rectangle(p.x - 15, p.y - 15, 30, 30);
 				if (clickThresholdRectangle.contains(clickedPoint)) {
-					if(fbdStart != null && fbdStart == p) {
+					if (fbdStart != null && fbdStart == p) {
 						for (MouseListener m : imageLabel.getMouseListeners()) {
 							imageLabel.removeMouseListener(m);
 						}
@@ -520,13 +547,28 @@ public class MainPage {
 					fbdRecent = p;
 					g.dispose();
 					imageLabel.repaint();
-					
 
 				}
 			}
 			super.mouseClicked(e);
 		}
 
+	}
+
+	boolean saveFile(File temp, String s) {
+		FileWriter fout = null;
+		try {
+			fout = new FileWriter(temp);
+			fout.write(s);
+		} catch (IOException ioe) {
+			return false;
+		} finally {
+			try {
+				fout.close();
+			} catch (IOException excp) {
+			}
+		}
+		return true;
 	}
 
 }
