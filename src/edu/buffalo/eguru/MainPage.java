@@ -308,9 +308,9 @@ public class MainPage {
 						displayPoints(i,x, y);
 						cutsList.add(new ZPoint(x, y, i+1));
 						clearFBDData();
-						cutCount = i+1;
+						
 					}
-					
+					cutCount = pointsString.size()+1;
 					
 					ArrayList<String> linesString = getLinesFromText(fileText);
 					for(int i=0;i<linesString.size();i++) {
