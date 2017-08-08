@@ -21,10 +21,14 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.geom.Line2D;
 import java.awt.image.BufferedImage;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileFilter;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Iterator;
 
@@ -186,8 +190,7 @@ public class MainPage {
 				}
 				g.dispose();
 				imageLabel.repaint();
-				fbdStart = null;
-				fbdRecent = null;
+				clearFBDData();
 
 				// has to remove all listeners first before addding, adding a
 				// listener twice causes problems
@@ -234,6 +237,7 @@ public class MainPage {
 						setImage(bi);
 						cutCount = 1;
 						cutsList.clear();
+						clearFBDData();
 					} catch (IOException e1) {
 						showError(e1);
 						e1.printStackTrace();
@@ -249,11 +253,11 @@ public class MainPage {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				StringBuilder sb = new StringBuilder();
-				sb.append("Coordinates:\n");
+				sb.append("Points:\n");
 				for (ZPoint p : cutsList) {
 					sb.append(p.x + "," + p.y + "," + p.isCorrect() + "\n");
 				}
-				sb.append("End Coordinates\n");
+				sb.append("End Points\n");
 				sb.append("Lines:\n");
 				for(Line2D l: lineList) {
 					sb.append((int)l.getX1()+","+(int)l.getY1()+"|"+(int)l.getX2()+","+(int)l.getY2()+"\n");
@@ -290,8 +294,41 @@ public class MainPage {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				// TODO Auto-generated method stub
-				for(Line2D l: lineList) {
-					System.out.println("First: "+(int)l.getX1()+", "+l.getY1()+" Second: "+l.getX2()+", "+l.getY2());
+				JFileChooser chooser=new JFileChooser();
+				int result = chooser.showOpenDialog(gui);
+				if (result == JFileChooser.APPROVE_OPTION) {
+					File f = chooser.getSelectedFile();
+					ArrayList<String> fileText = readTextFile(f);
+					ArrayList<String> pointsString = getPointsFromText(fileText);
+					for(int i=0;i<pointsString.size();i++){
+						String[] pointsplit= pointsString.get(i).split(",");
+						int x= new Integer(pointsplit[0]);
+						int y= new Integer(pointsplit[1]);
+						System.out.println("P: "+x+","+y);
+						displayPoints(i,x, y);
+						cutsList.add(new ZPoint(x, y, i+1));
+						clearFBDData();
+						cutCount = i+1;
+					}
+					
+					
+					ArrayList<String> linesString = getLinesFromText(fileText);
+					for(int i=0;i<linesString.size();i++) {
+						String[] points = linesString.get(i).split("\\|");
+						String[] point1= points[0].split(",");
+						int point1x = Integer.parseInt(point1[0]);
+						int point1y = Integer.parseInt(point1[1]);
+						
+						String[] point2= points[1].split(",");
+						int point2x = Integer.parseInt(point2[0]);
+						int point2y = Integer.parseInt(point2[1]);
+						
+						System.out.println(point1x+","+point1y+"|"+point2x+","+point2y);
+						Point p1 = new Point(point1x, point1y);
+						Point p2 = new Point(point2x, point2y);
+						drawLineOnImage(p1, p2);
+//						Point p1 = new Point(linesSplit[0].split(",")[0], linesSplit[0].split(",")[1]);
+					}
 				}
 
 			}
@@ -591,6 +628,84 @@ public class MainPage {
 			}
 		}
 		return true;
+	}
+	
+	void clearFBDData() {
+		fbdStart = null;
+		fbdRecent = null;
+		firstPoint = null;
+		secondPoint = null;
+		lineList.clear();
+	}
+	
+	public ArrayList<String> readTextFile(File f) {
+		ArrayList<String> retString = new ArrayList<String>();;
+		try {
+			FileInputStream fstream = new FileInputStream(f);
+			BufferedReader br = new BufferedReader(new InputStreamReader(fstream));
+			
+			String strLine; 
+			// Read File Line By Line
+			while ((strLine = br.readLine()) != null) {
+				retString.add(strLine);
+			}
+
+			br.close();
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return retString;
+	}
+	
+	private void displayPoints(int i, int x, int y){
+		Graphics2D g = canvasImage.createGraphics();
+		g.setColor(Color.black);
+
+		g.drawImage(scissor, x - 15, y - 15, null);
+		g.drawString(Integer.toString(i+1), x - 15, y - 15);
+		g.dispose();
+		imageLabel.repaint();
+	}
+	
+	private ArrayList<String> getPointsFromText(ArrayList<String> fileText) {
+		ArrayList<String> pointsString = new ArrayList<String>();
+		int dataIdx = 0;
+		while(!fileText.get(dataIdx).contains("Points:"))
+			dataIdx++;
+		dataIdx++;
+		while(!fileText.get(dataIdx).contains("End Points") && dataIdx<fileText.size()) {
+			pointsString.add( fileText.get(dataIdx));
+			dataIdx++;
+		}
+		return pointsString;
+	
+	}
+	
+	private ArrayList<String> getLinesFromText(ArrayList<String> fileText) {
+		ArrayList<String> linesString = new ArrayList<String>();
+		int dataIdx = 0;
+		while(!fileText.get(dataIdx).contains("Lines:"))
+			dataIdx++;
+		dataIdx++;
+		while(!fileText.get(dataIdx).contains("End Lines") && dataIdx<fileText.size()) {
+			linesString.add( fileText.get(dataIdx));
+			dataIdx++;
+		}
+		return linesString;
+	
+	}
+	
+	void drawLineOnImage(Point p1, Point p2) {
+		Graphics2D g = canvasImage.createGraphics();
+		Stroke dashed = new BasicStroke(3, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0,
+				new float[] { 9 }, 0);
+		g.setStroke(dashed);
+		g.setColor(Color.black);
+		g.drawLine(p1.x, p1.y, p2.x, p2.y);
 	}
 
 }
