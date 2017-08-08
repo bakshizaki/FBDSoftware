@@ -377,6 +377,11 @@ public class MainPage {
 				deleteCuts.setEnabled(false);
 				deleteAll.setEnabled(false);
 				restartFBD.setEnabled(false);
+				
+				drawOriginal();
+				drawPoints(cutsList);
+
+				
 				// remove all mouselisteners first
 				for (MouseListener m : imageLabel.getMouseListeners()) {
 					imageLabel.removeMouseListener(m);
@@ -397,6 +402,10 @@ public class MainPage {
 				deleteCuts.setEnabled(true);
 				deleteAll.setEnabled(true);
 				restartFBD.setEnabled(false);
+				
+				drawOriginal();
+				drawPoints(cutsList);
+
 
 				// remove all mouselisteners first
 				for (MouseListener m : imageLabel.getMouseListeners()) {
