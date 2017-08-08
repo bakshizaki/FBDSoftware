@@ -66,10 +66,14 @@ public class MainPage {
 	int MODE_DRAWING = 1;
 	int MODE_SELECTION = 2;
 	int MODE_FBD = 3;
+	int MODE_TEST = 4;
 
 	int current_mode = MODE_NONE;
 	private Image scissor = null;
 	int cutCount = 1;
+	
+	boolean isFBDDefined = false;
+	boolean isFBDAnswered = false;
 
 	JButton deleteCuts, deleteAll, restartFBD;
 
@@ -80,6 +84,8 @@ public class MainPage {
 	ZPoint firstPoint, secondPoint;
 	
 	ArrayList<Line2D> lineList = new ArrayList<Line2D>();
+	ArrayList<Line2D> temporaryLineList = new ArrayList<Line2D>();
+	ArrayList<Line2D> answerLineList = new ArrayList<Line2D>();
 	
 //	Line2D l = new Line2D.Double();	
 
@@ -175,23 +181,10 @@ public class MainPage {
 
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				Graphics2D g = canvasImage.createGraphics();
-				g.drawImage(originalImage, 0, 0, canvasImage.getWidth(), canvasImage.getHeight(), 0, 0,
-						canvasImage.getWidth(), canvasImage.getHeight(), null);
-				for (ZPoint p : cutsList) {
-					if (p.isCorrect()) {
-						// System.out.println(p.getCutCounter());
-						p.setCorrect(false);
-					}
-					g.drawImage(scissor, p.x - 15, p.y - 15, null);
-					g.setColor(Color.BLACK);
-					g.drawString(Integer.toString(p.getCutCounter()), p.x - 15, p.y - 15);
-
-				}
-				g.dispose();
-				imageLabel.repaint();
-				clearFBDData();
-
+				
+				drawOriginal();
+				drawPoints(cutsList);
+				clearFBDDefinigVariables();
 				// has to remove all listeners first before addding, adding a
 				// listener twice causes problems
 				for (MouseListener m : imageLabel.getMouseListeners()) {
@@ -300,15 +293,14 @@ public class MainPage {
 					File f = chooser.getSelectedFile();
 					ArrayList<String> fileText = readTextFile(f);
 					ArrayList<String> pointsString = getPointsFromText(fileText);
+					clearFBDData();
+					cutsList.clear();
 					for(int i=0;i<pointsString.size();i++){
 						String[] pointsplit= pointsString.get(i).split(",");
 						int x= new Integer(pointsplit[0]);
 						int y= new Integer(pointsplit[1]);
-						System.out.println("P: "+x+","+y);
 						displayPoints(i,x, y);
 						cutsList.add(new ZPoint(x, y, i+1));
-						clearFBDData();
-						
 					}
 					cutCount = pointsString.size()+1;
 					
@@ -323,11 +315,10 @@ public class MainPage {
 						int point2x = Integer.parseInt(point2[0]);
 						int point2y = Integer.parseInt(point2[1]);
 						
-						System.out.println(point1x+","+point1y+"|"+point2x+","+point2y);
 						Point p1 = new Point(point1x, point1y);
 						Point p2 = new Point(point2x, point2y);
 						drawLineOnImage(p1, p2);
-//						Point p1 = new Point(linesSplit[0].split(",")[0], linesSplit[0].split(",")[1]);
+						lineList.add(new Line2D.Double(p1, p2));
 					}
 				}
 
@@ -427,11 +418,45 @@ public class MainPage {
 				deleteCuts.setEnabled(false);
 				deleteAll.setEnabled(false);
 				restartFBD.setEnabled(true);
-
+				
+				drawOriginal();
+				drawPoints(cutsList);
+//				clearFBDData();
+				clearFBDDefinigVariables();
+				
+				isFBDDefined = false;
 				for (MouseListener m : imageLabel.getMouseListeners()) {
 					imageLabel.removeMouseListener(m);
 				}
 				imageLabel.addMouseListener(new fbdModeListener());
+			}
+		});
+		
+		JMenuItem testMode = new JMenuItem("Test Mode");
+		testMode.addActionListener(new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				current_mode = MODE_TEST;
+				statusLabel.setText("Mode: Test");
+				deleteCuts.setEnabled(false);
+				deleteAll.setEnabled(false);
+				restartFBD.setEnabled(false);
+				
+				//reset stuff
+				clearFBDDefinigVariables();
+				answerLineList.clear();
+
+				drawOriginal();
+				drawPoints(cutsList);
+
+				
+				isFBDAnswered=false;
+				for (MouseListener m : imageLabel.getMouseListeners()) {
+					imageLabel.removeMouseListener(m);
+				}
+				
+				imageLabel.addMouseListener(new TestModeListener());
 			}
 		});
 
@@ -439,6 +464,7 @@ public class MainPage {
 		modes.add(drawCuts);
 		modes.add(selectCuts);
 		modes.add(defineFBD);
+		modes.add(testMode);
 
 		return modes;
 	}
@@ -494,7 +520,6 @@ public class MainPage {
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		frame.setContentPane(getGui());
 		frame.setJMenuBar(getMenuBar());
-
 	}
 
 	public static BufferedImage imageResizing(BufferedImage img, int width, int height) {
@@ -580,9 +605,7 @@ public class MainPage {
 				Rectangle clickThresholdRectangle = new Rectangle(p.x - 15, p.y - 15, 30, 30);
 				if (clickThresholdRectangle.contains(clickedPoint)) {
 					if (fbdStart != null && fbdStart == p) {
-						for (MouseListener m : imageLabel.getMouseListeners()) {
-							imageLabel.removeMouseListener(m);
-						}
+						isFBDDefined = true;
 					}
 					if (fbdStart == null) {
 						fbdStart = p;
@@ -598,20 +621,97 @@ public class MainPage {
 						g.setStroke(dashed);
 						g.setColor(Color.black);
 						g.drawLine(fbdRecent.x, fbdRecent.y, p.x, p.y);
-						System.out.println("First: "+firstPoint.getCutCounter()+", Second: "+secondPoint.getCutCounter());
-						lineList.add(new Line2D.Double(firstPoint, secondPoint));
+						temporaryLineList.add(new Line2D.Double(firstPoint, secondPoint));
 						firstPoint = secondPoint;
 					}
 					p.setCorrect(true);
 					fbdRecent = p;
 					g.dispose();
 					imageLabel.repaint();
+					
+					if(isFBDDefined) {
+						for (MouseListener m : imageLabel.getMouseListeners()) {
+							imageLabel.removeMouseListener(m);
+						}
+						lineList = new ArrayList<Line2D>(temporaryLineList);
+						isFBDDefined = false;
+					}
 
 				}
 			}
 			super.mouseClicked(e);
 		}
 
+	}
+	
+	class TestModeListener extends MouseAdapter {
+
+		@Override
+		public void mouseClicked(MouseEvent e) {
+			Point clickedPoint = e.getPoint();
+			for (ZPoint p : cutsList) {
+				Rectangle clickThresholdRectangle = new Rectangle(p.x - 15, p.y - 15, 30, 30);
+				if (clickThresholdRectangle.contains(clickedPoint)) {
+					if (fbdStart != null && fbdStart == p) {
+						isFBDAnswered = true;
+
+					}
+					if (fbdStart == null) {
+						fbdStart = p;
+						firstPoint = p;
+					}
+					Graphics2D g = canvasImage.createGraphics();
+					g.setColor(Color.green);
+					g.drawRect(p.x - 15, p.y - 15, 30, 30);
+					if (fbdRecent != null) {
+						secondPoint = p;
+						Stroke dashed = new BasicStroke(3, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0,
+								new float[] { 9 }, 0);
+						g.setStroke(dashed);
+						g.setColor(Color.black);
+						g.drawLine(fbdRecent.x, fbdRecent.y, p.x, p.y);
+//						System.out.println("First: "+firstPoint.getCutCounter()+", Second: "+secondPoint.getCutCounter());
+						answerLineList.add(new Line2D.Double(firstPoint, secondPoint));
+						firstPoint = secondPoint;
+					}
+					p.setCorrect(true);
+					fbdRecent = p;
+					g.dispose();
+					imageLabel.repaint();
+					
+					if(isFBDAnswered) {
+						for (MouseListener m : imageLabel.getMouseListeners()) {
+							imageLabel.removeMouseListener(m);
+						}
+						
+						//check if same
+						System.out.println("Answered");
+						for(Line2D l: answerLineList) {
+							System.out.println((int)l.getX1()+","+(int)l.getY1()+"|"+(int)l.getX2()+","+(int)l.getY2());
+						}
+						System.out.println("Stored");
+						for(Line2D l: lineList) {
+							System.out.println((int)l.getX1()+","+(int)l.getY1()+"|"+(int)l.getX2()+","+(int)l.getY2());
+						}
+						
+						boolean isFBDSame = true;
+						for(Line2D line: answerLineList) {
+							if(!isListContainLine(lineList, line)) {
+								isFBDSame = false;
+							}
+								
+						}
+						if(isFBDSame == true)
+							statusLabel.setText("Mode: Test Answer:Correct");
+						else
+							statusLabel.setText("Mode: Test Answer:Incorrect");
+					}
+
+				}
+			}
+			super.mouseClicked(e);
+		}
+		
 	}
 
 	boolean saveFile(File temp, String s) {
@@ -636,6 +736,14 @@ public class MainPage {
 		firstPoint = null;
 		secondPoint = null;
 		lineList.clear();
+	}
+	
+	void clearFBDDefinigVariables() {
+		fbdStart = null;
+		fbdRecent = null;
+		firstPoint = null;
+		secondPoint = null;
+		temporaryLineList.clear();
 	}
 	
 	public ArrayList<String> readTextFile(File f) {
@@ -706,6 +814,47 @@ public class MainPage {
 		g.setStroke(dashed);
 		g.setColor(Color.black);
 		g.drawLine(p1.x, p1.y, p2.x, p2.y);
+	}
+	
+	boolean isLineEqual(Line2D l1, Line2D l2) {
+		if(l1.getP1().equals(l2.getP1()) && l1.getP2().equals(l2.getP2()))
+			return true;
+		else if(l1.getP1().equals(l2.getP2()) && l1.getP2().equals(l2.getP1()))
+			return true;
+		else
+			return false;
+	}
+	
+	boolean isListContainLine(ArrayList<Line2D> list, Line2D line) {
+		for(Line2D l:list) {
+			if(isLineEqual(l, line))
+				return true;
+		}
+		return false;
+	}
+	
+	void drawOriginal() {
+		Graphics2D g = canvasImage.createGraphics();
+		g.drawImage(originalImage, 0, 0, canvasImage.getWidth(), canvasImage.getHeight(), 0, 0,
+				canvasImage.getWidth(), canvasImage.getHeight(), null);
+		g.dispose();
+		imageLabel.repaint();
+	}
+	
+	void drawPoints(ArrayList<ZPoint> cutsList) {
+		Graphics2D g = canvasImage.createGraphics();
+		for (ZPoint p : cutsList) {
+			if (p.isCorrect()) {
+				// System.out.println(p.getCutCounter());
+				p.setCorrect(false);
+			}
+			g.drawImage(scissor, p.x - 15, p.y - 15, null);
+			g.setColor(Color.BLACK);
+			g.drawString(Integer.toString(p.getCutCounter()), p.x - 15, p.y - 15);
+
+		}
+		g.dispose();
+		imageLabel.repaint();
 	}
 
 }
