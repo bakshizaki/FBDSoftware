@@ -493,7 +493,7 @@ public class MainPage {
 
 		Graphics2D g = this.canvasImage.createGraphics();
 
-		g.drawImage(image, 0, 0, gui);
+		g.drawImage(image, 0, 0, null);
 
 		if (this.imageLabel != null) {
 			imageLabel.setIcon(new ImageIcon(canvasImage));
