@@ -5,10 +5,12 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.EventQueue;
+import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.GridBagLayout;
 import java.awt.Image;
 import java.awt.Point;
+import java.awt.Polygon;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.Stroke;
@@ -19,8 +21,13 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.awt.event.MouseMotionAdapter;
+import java.awt.event.MouseMotionListener;
+import java.awt.geom.AffineTransform;
 import java.awt.geom.Line2D;
 import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
+import java.awt.image.WritableRaster;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileFilter;
@@ -71,9 +78,10 @@ public class MainPage {
 	int current_mode = MODE_NONE;
 	private Image scissor = null;
 	int cutCount = 1;
-	
+
 	boolean isFBDDefined = false;
 	boolean isFBDAnswered = false;
+	boolean isForcePointSelected = false;
 
 	JButton deleteCuts, deleteAll, restartFBD;
 
@@ -82,12 +90,19 @@ public class MainPage {
 	Point fbdStart;
 	Point fbdRecent;
 	ZPoint firstPoint, secondPoint;
-	
+
 	ArrayList<Line2D> lineList = new ArrayList<Line2D>();
 	ArrayList<Line2D> temporaryLineList = new ArrayList<Line2D>();
 	ArrayList<Line2D> answerLineList = new ArrayList<Line2D>();
 	
-//	Line2D l = new Line2D.Double();	
+	BufferedImage subImage;
+	
+	int arrowLineLength = 50;
+	int arrowHeaderSize = 5;
+	int arrowLenght = arrowLineLength+arrowHeaderSize;
+	
+
+	// Line2D l = new Line2D.Double();
 
 	public JComponent getGui() {
 		if (gui == null) {
@@ -181,7 +196,7 @@ public class MainPage {
 
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				
+
 				drawOriginal();
 				drawPoints(cutsList);
 				clearFBDDefinigVariables();
@@ -252,8 +267,9 @@ public class MainPage {
 				}
 				sb.append("End Points\n");
 				sb.append("Lines:\n");
-				for(Line2D l: lineList) {
-					sb.append((int)l.getX1()+","+(int)l.getY1()+"|"+(int)l.getX2()+","+(int)l.getY2()+"\n");
+				for (Line2D l : lineList) {
+					sb.append((int) l.getX1() + "," + (int) l.getY1() + "|" + (int) l.getX2() + "," + (int) l.getY2()
+							+ "\n");
 				}
 				sb.append("End Lines");
 
@@ -275,7 +291,7 @@ public class MainPage {
 							"Save As", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION)
 						break;
 				} while (true);
-				
+
 				saveFile(temp, sb.toString());
 
 			}
@@ -287,7 +303,7 @@ public class MainPage {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				// TODO Auto-generated method stub
-				JFileChooser chooser=new JFileChooser();
+				JFileChooser chooser = new JFileChooser();
 				int result = chooser.showOpenDialog(gui);
 				if (result == JFileChooser.APPROVE_OPTION) {
 					File f = chooser.getSelectedFile();
@@ -295,26 +311,26 @@ public class MainPage {
 					ArrayList<String> pointsString = getPointsFromText(fileText);
 					clearFBDData();
 					cutsList.clear();
-					for(int i=0;i<pointsString.size();i++){
-						String[] pointsplit= pointsString.get(i).split(",");
-						int x= new Integer(pointsplit[0]);
-						int y= new Integer(pointsplit[1]);
-						displayPoints(i,x, y);
-						cutsList.add(new ZPoint(x, y, i+1));
+					for (int i = 0; i < pointsString.size(); i++) {
+						String[] pointsplit = pointsString.get(i).split(",");
+						int x = new Integer(pointsplit[0]);
+						int y = new Integer(pointsplit[1]);
+						displayPoints(i, x, y);
+						cutsList.add(new ZPoint(x, y, i + 1));
 					}
-					cutCount = pointsString.size()+1;
-					
+					cutCount = pointsString.size() + 1;
+
 					ArrayList<String> linesString = getLinesFromText(fileText);
-					for(int i=0;i<linesString.size();i++) {
+					for (int i = 0; i < linesString.size(); i++) {
 						String[] points = linesString.get(i).split("\\|");
-						String[] point1= points[0].split(",");
+						String[] point1 = points[0].split(",");
 						int point1x = Integer.parseInt(point1[0]);
 						int point1y = Integer.parseInt(point1[1]);
-						
-						String[] point2= points[1].split(",");
+
+						String[] point2 = points[1].split(",");
 						int point2x = Integer.parseInt(point2[0]);
 						int point2y = Integer.parseInt(point2[1]);
-						
+
 						Point p1 = new Point(point1x, point1y);
 						Point p2 = new Point(point2x, point2y);
 						drawLineOnImage(p1, p2);
@@ -377,11 +393,10 @@ public class MainPage {
 				deleteCuts.setEnabled(false);
 				deleteAll.setEnabled(false);
 				restartFBD.setEnabled(false);
-				
+
 				drawOriginal();
 				drawPoints(cutsList);
 
-				
 				// remove all mouselisteners first
 				for (MouseListener m : imageLabel.getMouseListeners()) {
 					imageLabel.removeMouseListener(m);
@@ -402,10 +417,9 @@ public class MainPage {
 				deleteCuts.setEnabled(true);
 				deleteAll.setEnabled(true);
 				restartFBD.setEnabled(false);
-				
+
 				drawOriginal();
 				drawPoints(cutsList);
-
 
 				// remove all mouselisteners first
 				for (MouseListener m : imageLabel.getMouseListeners()) {
@@ -427,12 +441,12 @@ public class MainPage {
 				deleteCuts.setEnabled(false);
 				deleteAll.setEnabled(false);
 				restartFBD.setEnabled(true);
-				
+
 				drawOriginal();
 				drawPoints(cutsList);
-//				clearFBDData();
+				// clearFBDData();
 				clearFBDDefinigVariables();
-				
+
 				isFBDDefined = false;
 				for (MouseListener m : imageLabel.getMouseListeners()) {
 					imageLabel.removeMouseListener(m);
@@ -440,10 +454,10 @@ public class MainPage {
 				imageLabel.addMouseListener(new fbdModeListener());
 			}
 		});
-		
+
 		JMenuItem testMode = new JMenuItem("Test Mode");
 		testMode.addActionListener(new ActionListener() {
-			
+
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				current_mode = MODE_TEST;
@@ -451,20 +465,19 @@ public class MainPage {
 				deleteCuts.setEnabled(false);
 				deleteAll.setEnabled(false);
 				restartFBD.setEnabled(false);
-				
-				//reset stuff
+
+				// reset stuff
 				clearFBDDefinigVariables();
 				answerLineList.clear();
 
 				drawOriginal();
 				drawPoints(cutsList);
 
-				
-				isFBDAnswered=false;
+				isFBDAnswered = false;
 				for (MouseListener m : imageLabel.getMouseListeners()) {
 					imageLabel.removeMouseListener(m);
 				}
-				
+
 				imageLabel.addMouseListener(new TestModeListener());
 			}
 		});
@@ -478,10 +491,44 @@ public class MainPage {
 		return modes;
 	}
 
+	JMenu getForceMenu() {
+		JMenu force = new JMenu("Forces");
+
+		JMenuItem drawForces = new JMenuItem("Draw Forces");
+		drawForces.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				statusLabel.setText("Mode: Forces");
+				deleteCuts.setEnabled(false);
+				deleteAll.setEnabled(false);
+				restartFBD.setEnabled(false);
+
+				clearFBDDefinigVariables();
+				drawOriginal();
+				drawPoints(cutsList);
+
+				isFBDAnswered = false;
+				for (MouseListener m : imageLabel.getMouseListeners()) {
+					imageLabel.removeMouseListener(m);
+				}
+
+				imageLabel.addMouseListener(new DrawForcesListener());
+				imageLabel.addMouseMotionListener(new DrawForcesMotionListener());
+
+			}
+		});
+
+		force.add(drawForces);
+
+		return force;
+	}
+
 	JMenuBar getMenuBar() {
 		JMenuBar mb = new JMenuBar();
 		mb.add(getFileMenu());
 		mb.add(getModesMenu());
+		mb.add(getForceMenu());
 		return mb;
 	}
 
@@ -548,7 +595,6 @@ public class MainPage {
 
 		@Override
 		public void mouseClicked(MouseEvent e) {
-			// System.out.println("Xcord: " + e.getX() + " Ycord: " + e.getY());
 			drawCut(e.getPoint());
 
 			super.mouseClicked(e);
@@ -637,8 +683,8 @@ public class MainPage {
 					fbdRecent = p;
 					g.dispose();
 					imageLabel.repaint();
-					
-					if(isFBDDefined) {
+
+					if (isFBDDefined) {
 						for (MouseListener m : imageLabel.getMouseListeners()) {
 							imageLabel.removeMouseListener(m);
 						}
@@ -652,7 +698,7 @@ public class MainPage {
 		}
 
 	}
-	
+
 	class TestModeListener extends MouseAdapter {
 
 		@Override
@@ -679,7 +725,6 @@ public class MainPage {
 						g.setStroke(dashed);
 						g.setColor(Color.black);
 						g.drawLine(fbdRecent.x, fbdRecent.y, p.x, p.y);
-//						System.out.println("First: "+firstPoint.getCutCounter()+", Second: "+secondPoint.getCutCounter());
 						answerLineList.add(new Line2D.Double(firstPoint, secondPoint));
 						firstPoint = secondPoint;
 					}
@@ -687,30 +732,32 @@ public class MainPage {
 					fbdRecent = p;
 					g.dispose();
 					imageLabel.repaint();
-					
-					if(isFBDAnswered) {
+
+					if (isFBDAnswered) {
 						for (MouseListener m : imageLabel.getMouseListeners()) {
 							imageLabel.removeMouseListener(m);
 						}
-						
-						//check if same
-						System.out.println("Answered");
-						for(Line2D l: answerLineList) {
-							System.out.println((int)l.getX1()+","+(int)l.getY1()+"|"+(int)l.getX2()+","+(int)l.getY2());
-						}
-						System.out.println("Stored");
-						for(Line2D l: lineList) {
-							System.out.println((int)l.getX1()+","+(int)l.getY1()+"|"+(int)l.getX2()+","+(int)l.getY2());
-						}
-						
+
+						// check if same
+//						System.out.println("Answered");
+//						for (Line2D l : answerLineList) {
+//							System.out.println((int) l.getX1() + "," + (int) l.getY1() + "|" + (int) l.getX2() + ","
+//									+ (int) l.getY2());
+//						}
+//						System.out.println("Stored");
+//						for (Line2D l : lineList) {
+//							System.out.println((int) l.getX1() + "," + (int) l.getY1() + "|" + (int) l.getX2() + ","
+//									+ (int) l.getY2());
+//						}
+
 						boolean isFBDSame = true;
-						for(Line2D line: answerLineList) {
-							if(!isListContainLine(lineList, line)) {
+						for (Line2D line : answerLineList) {
+							if (!isListContainLine(lineList, line)) {
 								isFBDSame = false;
 							}
-								
+
 						}
-						if(isFBDSame == true)
+						if (isFBDSame == true)
 							statusLabel.setText("Mode: Test Answer:Correct");
 						else
 							statusLabel.setText("Mode: Test Answer:Incorrect");
@@ -719,6 +766,79 @@ public class MainPage {
 				}
 			}
 			super.mouseClicked(e);
+		}
+
+	}
+
+	class DrawForcesListener extends MouseAdapter {
+
+		@Override
+		public void mouseClicked(MouseEvent e) {
+			Point clickedPoint = e.getPoint();
+			if (isForcePointSelected == false) {
+				
+				for (ZPoint p : cutsList) {
+					Rectangle clickThresholdRectangle = new Rectangle(p.x - 15, p.y - 15, 30, 30);
+					if (clickThresholdRectangle.contains(clickedPoint)) {
+						isForcePointSelected = true;
+						firstPoint = p;
+						
+						Graphics2D g = canvasImage.createGraphics();
+						g.setColor(Color.green);
+						g.drawRect(p.x - 15, p.y - 15, 30, 30);
+						g.dispose();
+						imageLabel.repaint();
+						
+						subImage = deepCopy(canvasImage);
+						subImage = subImage.getSubimage(p.x - arrowLenght, p.y - arrowLenght, arrowLenght*2, arrowLenght*2);
+//						subImage = canvasImage.getSubimage(p.x - 50, p.y - 50, 100, 100);
+//						imageLabel.setIcon(new ImageIcon(subImage));
+
+					}
+				}
+			}
+			else {
+				isForcePointSelected = false;
+				secondPoint = new ZPoint(e.getPoint(), 0);
+				double distance = firstPoint.distance(secondPoint);
+				double ratio = arrowLineLength / distance;
+				double new_X = ((1-ratio)*firstPoint.getX())+ratio * secondPoint.getX();
+				double new_Y = ((1-ratio)*firstPoint.getY())+ratio * secondPoint.getY();
+				ZPoint newPoint= new ZPoint((int) new_X, (int) new_Y, 0);
+				drawArrowHead(firstPoint, newPoint);
+//				drawLineOnImage(firstPoint, secondPoint);
+			}
+			
+			super.mouseClicked(e);
+		}
+
+	}
+	
+	class DrawForcesMotionListener implements MouseMotionListener {
+
+		@Override
+		public void mouseDragged(MouseEvent e) {
+			// TODO Auto-generated method stub
+			
+		}
+
+		@Override
+		public void mouseMoved(MouseEvent e) {
+			if(isForcePointSelected == true) {
+				secondPoint = new ZPoint(e.getPoint(), 0);
+				double distance = firstPoint.distance(secondPoint);
+				double ratio = arrowLineLength / distance;
+				double new_X = ((1-ratio)*firstPoint.getX())+ratio * secondPoint.getX();
+				double new_Y = ((1-ratio)*firstPoint.getY())+ratio * secondPoint.getY();
+				ZPoint newPoint= new ZPoint((int) new_X, (int) new_Y, 0);
+				Graphics2D g = canvasImage.createGraphics();
+				g.drawImage(subImage, (int) firstPoint.getX()-arrowLenght, (int) firstPoint.getY()-arrowLenght, (int) firstPoint.getX()+arrowLenght, (int) firstPoint.getY()+arrowLenght, 0, 0, arrowLenght*2, arrowLenght*2, null);
+				g.dispose();
+				imageLabel.repaint();
+				drawArrowHead(firstPoint, newPoint);
+				
+			}
+			
 		}
 		
 	}
@@ -738,7 +858,7 @@ public class MainPage {
 		}
 		return true;
 	}
-	
+
 	void clearFBDData() {
 		fbdStart = null;
 		fbdRecent = null;
@@ -746,7 +866,7 @@ public class MainPage {
 		secondPoint = null;
 		lineList.clear();
 	}
-	
+
 	void clearFBDDefinigVariables() {
 		fbdStart = null;
 		fbdRecent = null;
@@ -754,14 +874,15 @@ public class MainPage {
 		secondPoint = null;
 		temporaryLineList.clear();
 	}
-	
+
 	public ArrayList<String> readTextFile(File f) {
-		ArrayList<String> retString = new ArrayList<String>();;
+		ArrayList<String> retString = new ArrayList<String>();
+		;
 		try {
 			FileInputStream fstream = new FileInputStream(f);
 			BufferedReader br = new BufferedReader(new InputStreamReader(fstream));
-			
-			String strLine; 
+
+			String strLine;
 			// Read File Line By Line
 			while ((strLine = br.readLine()) != null) {
 				retString.add(strLine);
@@ -777,84 +898,85 @@ public class MainPage {
 		}
 		return retString;
 	}
-	
-	private void displayPoints(int i, int x, int y){
+
+	private void displayPoints(int i, int x, int y) {
 		Graphics2D g = canvasImage.createGraphics();
 		g.setColor(Color.black);
 
 		g.drawImage(scissor, x - 15, y - 15, null);
-		g.drawString(Integer.toString(i+1), x - 15, y - 15);
+		g.drawString(Integer.toString(i + 1), x - 15, y - 15);
 		g.dispose();
 		imageLabel.repaint();
 	}
-	
+
 	private ArrayList<String> getPointsFromText(ArrayList<String> fileText) {
 		ArrayList<String> pointsString = new ArrayList<String>();
 		int dataIdx = 0;
-		while(!fileText.get(dataIdx).contains("Points:"))
+		while (!fileText.get(dataIdx).contains("Points:"))
 			dataIdx++;
 		dataIdx++;
-		while(!fileText.get(dataIdx).contains("End Points") && dataIdx<fileText.size()) {
-			pointsString.add( fileText.get(dataIdx));
+		while (!fileText.get(dataIdx).contains("End Points") && dataIdx < fileText.size()) {
+			pointsString.add(fileText.get(dataIdx));
 			dataIdx++;
 		}
 		return pointsString;
-	
+
 	}
-	
+
 	private ArrayList<String> getLinesFromText(ArrayList<String> fileText) {
 		ArrayList<String> linesString = new ArrayList<String>();
 		int dataIdx = 0;
-		while(!fileText.get(dataIdx).contains("Lines:"))
+		while (!fileText.get(dataIdx).contains("Lines:"))
 			dataIdx++;
 		dataIdx++;
-		while(!fileText.get(dataIdx).contains("End Lines") && dataIdx<fileText.size()) {
-			linesString.add( fileText.get(dataIdx));
+		while (!fileText.get(dataIdx).contains("End Lines") && dataIdx < fileText.size()) {
+			linesString.add(fileText.get(dataIdx));
 			dataIdx++;
 		}
 		return linesString;
-	
+
 	}
-	
+
 	void drawLineOnImage(Point p1, Point p2) {
 		Graphics2D g = canvasImage.createGraphics();
-		Stroke dashed = new BasicStroke(3, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0,
-				new float[] { 9 }, 0);
+		Stroke dashed = new BasicStroke(3, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0, new float[] { 9 }, 0);
 		g.setStroke(dashed);
 		g.setColor(Color.black);
 		g.drawLine(p1.x, p1.y, p2.x, p2.y);
+		g.dispose();
+		imageLabel.repaint();
+
 	}
-	
+
 	boolean isLineEqual(Line2D l1, Line2D l2) {
-		if(l1.getP1().equals(l2.getP1()) && l1.getP2().equals(l2.getP2()))
+		if (l1.getP1().equals(l2.getP1()) && l1.getP2().equals(l2.getP2()))
 			return true;
-		else if(l1.getP1().equals(l2.getP2()) && l1.getP2().equals(l2.getP1()))
+		else if (l1.getP1().equals(l2.getP2()) && l1.getP2().equals(l2.getP1()))
 			return true;
 		else
 			return false;
 	}
-	
+
 	boolean isListContainLine(ArrayList<Line2D> list, Line2D line) {
-		for(Line2D l:list) {
-			if(isLineEqual(l, line))
+		for (Line2D l : list) {
+			if (isLineEqual(l, line))
 				return true;
 		}
 		return false;
 	}
-	
+
 	void drawOriginal() {
 		Graphics2D g = canvasImage.createGraphics();
-		g.drawImage(originalImage, 0, 0, canvasImage.getWidth(), canvasImage.getHeight(), 0, 0,
-				canvasImage.getWidth(), canvasImage.getHeight(), null);
+		g.drawImage(originalImage, 0, 0, canvasImage.getWidth(), canvasImage.getHeight(), 0, 0, canvasImage.getWidth(),
+				canvasImage.getHeight(), null);
 		g.dispose();
 		imageLabel.repaint();
 	}
-	
+
 	void drawPoints(ArrayList<ZPoint> cutsList) {
 		Graphics2D g = canvasImage.createGraphics();
 		for (ZPoint p : cutsList) {
 			if (p.isCorrect()) {
-				// System.out.println(p.getCutCounter());
 				p.setCorrect(false);
 			}
 			g.drawImage(scissor, p.x - 15, p.y - 15, null);
@@ -865,5 +987,44 @@ public class MainPage {
 		g.dispose();
 		imageLabel.repaint();
 	}
+	
+	private void drawArrowHead(Point p1, Point p2) {
+		int x1 = (int) p1.getX();
+		int y1 = (int) p1.getY();
+		int x2 = (int) p2.getX();
+		int y2 = (int) p2.getY();
+		
+		Graphics2D g2d = canvasImage.createGraphics();
+		AffineTransform tx = new AffineTransform();
+		Line2D.Double line = new Line2D.Double(x1,y1,x2,y2);
+		
+		g2d.setColor(Color.BLACK);
+		g2d.drawLine(x1, y1, x2, y2);
+
+		Polygon arrowHead = new Polygon();
+		arrowHead.addPoint( 0,5);
+		arrowHead.addPoint( -5, -5);
+		arrowHead.addPoint( 5,-5);
+
+	    tx.setToIdentity();
+	    double angle = Math.atan2(line.y2-line.y1, line.x2-line.x1);
+	    tx.translate(line.x2, line.y2);
+	    tx.rotate((angle-Math.PI/2d));  
+
+	    Graphics2D g = (Graphics2D) g2d.create();
+	    g.setColor(Color.black);
+	    g.setTransform(tx);   
+	    g.fill(arrowHead);
+	    g.dispose();
+	    
+	    imageLabel.repaint();
+	}
+	
+	static BufferedImage deepCopy(BufferedImage bi) {
+		 ColorModel cm = bi.getColorModel();
+		 boolean isAlphaPremultiplied = cm.isAlphaPremultiplied();
+		 WritableRaster raster = bi.copyData(null);
+		 return new BufferedImage(cm, raster, isAlphaPremultiplied, null);
+		}
 
 }
