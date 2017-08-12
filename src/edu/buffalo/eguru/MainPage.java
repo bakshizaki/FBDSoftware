@@ -1022,7 +1022,14 @@ public class MainPage {
 				double new_X = ((1 - ratio) * firstForcePoint.getX()) + ratio * secondForcePoint.getX();
 				double new_Y = ((1 - ratio) * firstForcePoint.getY()) + ratio * secondForcePoint.getY();
 				ForcePoint newPoint = new ForcePoint((int) new_X, (int) new_Y);
-				drawArrowHead(firstForcePoint, newPoint);
+				Graphics2D g = canvasImage.createGraphics();
+				g.drawImage(subImage, (int) firstForcePoint.getX() - arrowLenght, (int) firstForcePoint.getY() - arrowLenght,
+						(int) firstForcePoint.getX() + arrowLenght, (int) firstForcePoint.getY() + arrowLenght, 0, 0,
+						arrowLenght * 2, arrowLenght * 2, null);
+				g.dispose();
+				imageLabel.repaint();
+
+				drawArrow(firstForcePoint, newPoint);
 				// drawLineOnImage(firstPoint, secondPoint);
 			}
 
@@ -1050,13 +1057,19 @@ public class MainPage {
 				double new_X = ((1 - ratio) * firstForcePoint.getX()) + ratio * secondForcePoint.getX();
 				double new_Y = ((1 - ratio) * firstForcePoint.getY()) + ratio * secondForcePoint.getY();
 				ForcePoint newPoint = new ForcePoint((int) new_X, (int) new_Y);
+				double angleRad = Math.atan2((new_Y - firstForcePoint.getY())*-1, new_X - firstForcePoint.getX());
+				double angleDeg = Math.toDegrees(angleRad);
+				angleDeg = (angleDeg + 360) % 360; 
+				
 				Graphics2D g = canvasImage.createGraphics();
 				g.drawImage(subImage, (int) firstForcePoint.getX() - arrowLenght, (int) firstForcePoint.getY() - arrowLenght,
 						(int) firstForcePoint.getX() + arrowLenght, (int) firstForcePoint.getY() + arrowLenght, 0, 0,
 						arrowLenght * 2, arrowLenght * 2, null);
+				g.setColor(Color.BLACK);
+				g.drawString(Integer.toString((int) angleDeg), firstForcePoint.x - 15, firstForcePoint.y - 15);
 				g.dispose();
 				imageLabel.repaint();
-				drawArrowHead(firstForcePoint, newPoint);
+				drawArrow(firstForcePoint, newPoint);
 
 			}
 
@@ -1231,7 +1244,7 @@ public class MainPage {
 		imageLabel.repaint();
 	}
 
-	private void drawArrowHead(Point p1, Point p2) {
+	private void drawArrow(Point p1, Point p2) {
 		int x1 = (int) p1.getX();
 		int y1 = (int) p1.getY();
 		int x2 = (int) p2.getX();
