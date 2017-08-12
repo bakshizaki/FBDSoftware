@@ -41,6 +41,7 @@ import java.util.Iterator;
 
 import javax.imageio.ImageIO;
 import javax.sound.sampled.Line;
+import javax.swing.ButtonGroup;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JComponent;
@@ -52,6 +53,7 @@ import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 import javax.swing.JToolBar;
 import javax.swing.UIManager;
@@ -74,9 +76,12 @@ public class MainPage {
 	int MODE_SELECTION = 2;
 	int MODE_FBD = 3;
 	int MODE_TEST = 4;
+	int MODE_DRAW_FP = 5;
+	int MODE_DEL_FP = 6;
 
 	int current_mode = MODE_NONE;
 	private Image scissor = null;
+	private Image forcePointImage = null;
 	int cutCount = 1;
 
 	boolean isFBDDefined = false;
@@ -87,20 +92,29 @@ public class MainPage {
 
 	ArrayList<ZPoint> cutsList = new ArrayList<ZPoint>();
 
+	// list of forcepoints
+	ArrayList<ForcePoint> fpList = new ArrayList<ForcePoint>();
+
 	Point fbdStart;
 	Point fbdRecent;
 	ZPoint firstPoint, secondPoint;
+	ForcePoint firstForcePoint, secondForcePoint;
 
 	ArrayList<Line2D> lineList = new ArrayList<Line2D>();
 	ArrayList<Line2D> temporaryLineList = new ArrayList<Line2D>();
 	ArrayList<Line2D> answerLineList = new ArrayList<Line2D>();
-	
+
 	BufferedImage subImage;
-	
+
 	int arrowLineLength = 50;
 	int arrowHeaderSize = 5;
-	int arrowLenght = arrowLineLength+arrowHeaderSize;
-	
+	int arrowLenght = arrowLineLength + arrowHeaderSize;
+
+	JToolBar forceToolbar = null;
+
+	static final Color KNOWN_FORCE_COLOR = Color.GREEN;
+	static final Color UNKNOWN_FORCE_COLOR = Color.RED;
+	Color forceColor = null;
 
 	// Line2D l = new Line2D.Double();
 
@@ -120,7 +134,8 @@ public class MainPage {
 			g.setColor(Color.WHITE);
 			g.fillRect(0, 0, canvasImage.getWidth(), canvasImage.getHeight());
 			g.drawImage(scissor, 100, 100, null);
-			originalImage = canvasImage;
+			g.drawImage(forcePointImage, 100, 100, null);
+			originalImage = deepCopy(canvasImage);
 
 			imageLabel = new JLabel(new ImageIcon(canvasImage));
 			JScrollPane imageScroll = new JScrollPane(imageView);
@@ -131,6 +146,8 @@ public class MainPage {
 
 			statusLabel = new JLabel("Mode: None");
 			gui.add(statusLabel, BorderLayout.SOUTH);
+			forceToolbar = getForceToolBar();
+			gui.add(forceToolbar, BorderLayout.EAST);
 
 		}
 		return gui;
@@ -141,27 +158,44 @@ public class MainPage {
 		tb.setFloatable(false);
 
 		// delete cuts button
-		deleteCuts = new JButton("Delete Cuts");
+		deleteCuts = new JButton("Delete");
 		deleteCuts.setMnemonic('d');
 		deleteCuts.setToolTipText("Delete Selected Cuts");
 		deleteCuts.addActionListener(new ActionListener() {
 
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				for (Iterator<ZPoint> iterator = cutsList.iterator(); iterator.hasNext();) {
-					ZPoint p = iterator.next();
-					if (p.isSelected) {
-						Graphics2D g = canvasImage.createGraphics();
-						g.drawImage(originalImage, p.x - 15, p.y - 25, p.x + 16, p.y + 16, p.x - 15, p.y - 25, p.x + 16,
-								p.y + 16, null);
-						g.dispose();
-						iterator.remove();
+				if (current_mode == MODE_SELECTION) {
+					for (Iterator<ZPoint> iterator = cutsList.iterator(); iterator.hasNext();) {
+						ZPoint p = iterator.next();
+						if (p.isSelected) {
+							Graphics2D g = canvasImage.createGraphics();
+							g.drawImage(originalImage, p.x - 15, p.y - 25, p.x + 16, p.y + 16, p.x - 15, p.y - 25,
+									p.x + 16, p.y + 16, null);
+							g.dispose();
+							iterator.remove();
+
+						}
 
 					}
+					imageLabel.repaint();
+				} else if (current_mode == MODE_DEL_FP) {
+					for (Iterator<ForcePoint> iterator = fpList.iterator(); iterator.hasNext();) {
+						ForcePoint p = iterator.next();
+						if (p.isSelected) {
+							Graphics2D g = canvasImage.createGraphics();
+							g.drawImage(originalImage, p.x - 15, p.y - 25, p.x + 16, p.y + 16, p.x - 15, p.y - 25,
+									p.x + 16, p.y + 16, null);
+							g.dispose();
+							iterator.remove();
 
+						}
+
+					}
+					imageLabel.repaint();
 				}
-				imageLabel.repaint();
 			}
+
 		});
 
 		// delete all cuts
@@ -173,17 +207,29 @@ public class MainPage {
 
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				for (Iterator<ZPoint> iterator = cutsList.iterator(); iterator.hasNext();) {
-					ZPoint p = iterator.next();
-					Graphics2D g = canvasImage.createGraphics();
-					g.drawImage(originalImage, p.x - 15, p.y - 25, p.x + 16, p.y + 16, p.x - 15, p.y - 25, p.x + 16,
-							p.y + 16, null);
-					g.dispose();
-					iterator.remove();
-				}
-				cutCount = 1;
-				imageLabel.repaint();
+				if (current_mode == MODE_SELECTION) {
+					for (Iterator<ZPoint> iterator = cutsList.iterator(); iterator.hasNext();) {
+						ZPoint p = iterator.next();
+						Graphics2D g = canvasImage.createGraphics();
+						g.drawImage(originalImage, p.x - 15, p.y - 25, p.x + 16, p.y + 16, p.x - 15, p.y - 25, p.x + 16,
+								p.y + 16, null);
+						g.dispose();
+						iterator.remove();
+					}
+					cutCount = 1;
+					imageLabel.repaint();
+				} else if (current_mode == MODE_DEL_FP) {
+					for (Iterator<ForcePoint> iterator = fpList.iterator(); iterator.hasNext();) {
+						ForcePoint p = iterator.next();
+						Graphics2D g = canvasImage.createGraphics();
+						g.drawImage(originalImage, p.x - 15, p.y - 25, p.x + 16, p.y + 16, p.x - 15, p.y - 25, p.x + 16,
+								p.y + 16, null);
+						g.dispose();
+						iterator.remove();
+					}
 
+					imageLabel.repaint();
+				}
 			}
 		});
 
@@ -223,6 +269,50 @@ public class MainPage {
 
 	}
 
+	JToolBar getForceToolBar() {
+		JToolBar tb = new JToolBar(JToolBar.VERTICAL);
+		tb.setFloatable(false);
+
+		JRadioButton knownForce = new JRadioButton("Known Force");
+		knownForce.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				// TODO Auto-generated method stub
+				forceColor = KNOWN_FORCE_COLOR;
+
+			}
+		});
+
+		JRadioButton unknownForce = new JRadioButton("Unknown Force");
+		unknownForce.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				// TODO Auto-generated method stub
+				forceColor = UNKNOWN_FORCE_COLOR;
+			}
+		});
+
+		JButton clockwiseMoment = new JButton("Clockwise Moment");
+
+		JButton anticlockwiseMoment = new JButton("Anticlockwise Moment");
+
+		ButtonGroup bg = new ButtonGroup();
+		bg.add(knownForce);
+		bg.add(unknownForce);
+
+		tb.add(knownForce);
+		knownForce.setSelected(true);
+		tb.add(unknownForce);
+		tb.addSeparator();
+		tb.add(clockwiseMoment);
+		tb.add(anticlockwiseMoment);
+		tb.setVisible(false);
+		return tb;
+
+	}
+
 	JMenu getFileMenu() {
 		JMenu file = new JMenu("File");
 		file.setMnemonic('f');
@@ -245,6 +335,7 @@ public class MainPage {
 						setImage(bi);
 						cutCount = 1;
 						cutsList.clear();
+						fpList.clear();
 						clearFBDData();
 					} catch (IOException e1) {
 						showError(e1);
@@ -375,6 +466,7 @@ public class MainPage {
 				deleteCuts.setEnabled(false);
 				deleteAll.setEnabled(false);
 				restartFBD.setEnabled(false);
+				forceToolbar.setVisible(false);
 
 				for (MouseListener m : imageLabel.getMouseListeners()) {
 					imageLabel.removeMouseListener(m);
@@ -393,6 +485,7 @@ public class MainPage {
 				deleteCuts.setEnabled(false);
 				deleteAll.setEnabled(false);
 				restartFBD.setEnabled(false);
+				forceToolbar.setVisible(false);
 
 				drawOriginal();
 				drawPoints(cutsList);
@@ -417,6 +510,7 @@ public class MainPage {
 				deleteCuts.setEnabled(true);
 				deleteAll.setEnabled(true);
 				restartFBD.setEnabled(false);
+				forceToolbar.setVisible(false);
 
 				drawOriginal();
 				drawPoints(cutsList);
@@ -441,6 +535,7 @@ public class MainPage {
 				deleteCuts.setEnabled(false);
 				deleteAll.setEnabled(false);
 				restartFBD.setEnabled(true);
+				forceToolbar.setVisible(false);
 
 				drawOriginal();
 				drawPoints(cutsList);
@@ -465,6 +560,7 @@ public class MainPage {
 				deleteCuts.setEnabled(false);
 				deleteAll.setEnabled(false);
 				restartFBD.setEnabled(false);
+				forceToolbar.setVisible(false);
 
 				// reset stuff
 				clearFBDDefinigVariables();
@@ -494,6 +590,56 @@ public class MainPage {
 	JMenu getForceMenu() {
 		JMenu force = new JMenu("Forces");
 
+		JMenuItem drawFP = new JMenuItem("Draw Force Point");
+		drawFP.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				current_mode = MODE_DRAW_FP;
+				statusLabel.setText("Mode: Drawing Force Point");
+				deleteCuts.setEnabled(false);
+				deleteAll.setEnabled(false);
+				restartFBD.setEnabled(false);
+				forceToolbar.setVisible(false);
+				
+				// drawOriginal();
+				drawForcePoints(fpList);
+
+				// remove all mouselisteners first
+				for (MouseListener m : imageLabel.getMouseListeners()) {
+					imageLabel.removeMouseListener(m);
+				}
+
+				imageLabel.addMouseListener(new fpDrawingModeListener());
+
+			}
+		});
+
+		JMenuItem deleteFP = new JMenuItem("Delete Force Point");
+		deleteFP.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				current_mode = MODE_DEL_FP;
+				statusLabel.setText("Mode: Delete Force Point");
+				deleteCuts.setEnabled(true);
+				deleteAll.setEnabled(true);
+				restartFBD.setEnabled(false);
+				forceToolbar.setVisible(false);
+				
+				drawOriginal();
+				drawForcePoints(fpList);
+
+				// remove all mouselisteners first
+				for (MouseListener m : imageLabel.getMouseListeners()) {
+					imageLabel.removeMouseListener(m);
+				}
+
+				imageLabel.addMouseListener(new FPDeleteModeListener());
+
+			}
+		});
+		
 		JMenuItem drawForces = new JMenuItem("Draw Forces");
 		drawForces.addActionListener(new ActionListener() {
 
@@ -506,7 +652,12 @@ public class MainPage {
 
 				clearFBDDefinigVariables();
 				drawOriginal();
-				drawPoints(cutsList);
+				drawForcePoints(fpList);
+
+				forceToolbar.setVisible(true);
+
+				// SET FORCE COLOR
+				forceColor = KNOWN_FORCE_COLOR;
 
 				isFBDAnswered = false;
 				for (MouseListener m : imageLabel.getMouseListeners()) {
@@ -519,6 +670,10 @@ public class MainPage {
 			}
 		});
 
+
+		
+		force.add(drawFP);
+		force.add(deleteFP);
 		force.add(drawForces);
 
 		return force;
@@ -569,9 +724,10 @@ public class MainPage {
 
 	private void initialize() {
 		scissor = Toolkit.getDefaultToolkit().getImage(getClass().getResource("images/scissor-30.png"));
+		forcePointImage = Toolkit.getDefaultToolkit().getImage(getClass().getResource("images/x-30.png"));
 
 		frame = new JFrame("FBD Software");
-		frame.setSize(900, 600);
+		frame.setSize(1100, 600);
 		frame.setVisible(true);
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		frame.setContentPane(getGui());
@@ -616,6 +772,29 @@ public class MainPage {
 
 	}
 
+	class fpDrawingModeListener extends MouseAdapter {
+
+		@Override
+		public void mouseClicked(MouseEvent e) {
+			drawCut(e.getPoint());
+
+			super.mouseClicked(e);
+		}
+
+		public void drawCut(Point point) {
+
+			Graphics2D g = canvasImage.createGraphics();
+			g.setColor(Color.black);
+
+			g.drawImage(forcePointImage, point.x - 15, point.y - 15, null);
+			g.dispose();
+			imageLabel.repaint();
+			fpList.add(new ForcePoint(point));
+
+		}
+
+	}
+
 	class selectionModeListener extends MouseAdapter {
 
 		@Override
@@ -638,6 +817,41 @@ public class MainPage {
 						g.drawImage(originalImage, p.x - 15, p.y - 15, p.x + 16, p.y + 16, p.x - 15, p.y - 15, p.x + 16,
 								p.y + 16, null);
 						g.drawImage(scissor, p.x - 15, p.y - 15, null);
+						g.dispose();
+						imageLabel.repaint();
+						p.setSelected(false);
+					}
+
+				}
+			}
+
+			super.mouseClicked(e);
+		}
+
+	}
+
+	class FPDeleteModeListener extends MouseAdapter {
+
+		@Override
+		public void mouseClicked(MouseEvent e) {
+			Point clickedPoint = e.getPoint();
+			for (ForcePoint p : fpList) {
+				Rectangle clickThresholdRectangle = new Rectangle(p.x - 15, p.y - 15, 30, 30);
+				if (clickThresholdRectangle.contains(clickedPoint)) {
+					if (!p.isSelected()) {
+						Graphics2D g = canvasImage.createGraphics();
+						g.setColor(Color.red);
+						// g.drawImage(originalImage, p.x-15, p.y-25, p.x+15,
+						// p.y+15, p.x-15, p.y-25, p.x+15, p.y+15, null);
+						g.drawRect(p.x - 15, p.y - 15, 30, 30);
+						g.dispose();
+						imageLabel.repaint();
+						p.setSelected(true);
+					} else {
+						Graphics2D g = canvasImage.createGraphics();
+						g.drawImage(originalImage, p.x - 15, p.y - 15, p.x + 16, p.y + 16, p.x - 15, p.y - 15, p.x + 16,
+								p.y + 16, null);
+						g.drawImage(forcePointImage, p.x - 15, p.y - 15, null);
 						g.dispose();
 						imageLabel.repaint();
 						p.setSelected(false);
@@ -739,16 +953,18 @@ public class MainPage {
 						}
 
 						// check if same
-//						System.out.println("Answered");
-//						for (Line2D l : answerLineList) {
-//							System.out.println((int) l.getX1() + "," + (int) l.getY1() + "|" + (int) l.getX2() + ","
-//									+ (int) l.getY2());
-//						}
-//						System.out.println("Stored");
-//						for (Line2D l : lineList) {
-//							System.out.println((int) l.getX1() + "," + (int) l.getY1() + "|" + (int) l.getX2() + ","
-//									+ (int) l.getY2());
-//						}
+						// System.out.println("Answered");
+						// for (Line2D l : answerLineList) {
+						// System.out.println((int) l.getX1() + "," + (int)
+						// l.getY1() + "|" + (int) l.getX2() + ","
+						// + (int) l.getY2());
+						// }
+						// System.out.println("Stored");
+						// for (Line2D l : lineList) {
+						// System.out.println((int) l.getX1() + "," + (int)
+						// l.getY1() + "|" + (int) l.getX2() + ","
+						// + (int) l.getY2());
+						// }
 
 						boolean isFBDSame = true;
 						for (Line2D line : answerLineList) {
@@ -776,71 +992,76 @@ public class MainPage {
 		public void mouseClicked(MouseEvent e) {
 			Point clickedPoint = e.getPoint();
 			if (isForcePointSelected == false) {
-				
-				for (ZPoint p : cutsList) {
+
+				for (ForcePoint p : fpList) {
 					Rectangle clickThresholdRectangle = new Rectangle(p.x - 15, p.y - 15, 30, 30);
 					if (clickThresholdRectangle.contains(clickedPoint)) {
 						isForcePointSelected = true;
-						firstPoint = p;
-						
+						firstForcePoint = p;
+
 						Graphics2D g = canvasImage.createGraphics();
 						g.setColor(Color.green);
 						g.drawRect(p.x - 15, p.y - 15, 30, 30);
 						g.dispose();
 						imageLabel.repaint();
-						
+
 						subImage = deepCopy(canvasImage);
-						subImage = subImage.getSubimage(p.x - arrowLenght, p.y - arrowLenght, arrowLenght*2, arrowLenght*2);
-//						subImage = canvasImage.getSubimage(p.x - 50, p.y - 50, 100, 100);
-//						imageLabel.setIcon(new ImageIcon(subImage));
+						subImage = subImage.getSubimage(p.x - arrowLenght, p.y - arrowLenght, arrowLenght * 2,
+								arrowLenght * 2);
+						// subImage = canvasImage.getSubimage(p.x - 50, p.y -
+						// 50, 100, 100);
+						// imageLabel.setIcon(new ImageIcon(subImage));
 
 					}
 				}
-			}
-			else {
+			} else {
 				isForcePointSelected = false;
-				secondPoint = new ZPoint(e.getPoint(), 0);
-				double distance = firstPoint.distance(secondPoint);
+				secondForcePoint = new ForcePoint(e.getPoint());
+				double distance = firstForcePoint.distance(secondForcePoint);
 				double ratio = arrowLineLength / distance;
-				double new_X = ((1-ratio)*firstPoint.getX())+ratio * secondPoint.getX();
-				double new_Y = ((1-ratio)*firstPoint.getY())+ratio * secondPoint.getY();
-				ZPoint newPoint= new ZPoint((int) new_X, (int) new_Y, 0);
-				drawArrowHead(firstPoint, newPoint);
-//				drawLineOnImage(firstPoint, secondPoint);
+				double new_X = ((1 - ratio) * firstForcePoint.getX()) + ratio * secondForcePoint.getX();
+				double new_Y = ((1 - ratio) * firstForcePoint.getY()) + ratio * secondForcePoint.getY();
+				ForcePoint newPoint = new ForcePoint((int) new_X, (int) new_Y);
+				drawArrowHead(firstForcePoint, newPoint);
+				// drawLineOnImage(firstPoint, secondPoint);
 			}
-			
+
 			super.mouseClicked(e);
 		}
 
 	}
-	
+
 	class DrawForcesMotionListener implements MouseMotionListener {
 
 		@Override
 		public void mouseDragged(MouseEvent e) {
 			// TODO Auto-generated method stub
-			
+
 		}
 
 		@Override
 		public void mouseMoved(MouseEvent e) {
-			if(isForcePointSelected == true) {
-				secondPoint = new ZPoint(e.getPoint(), 0);
-				double distance = firstPoint.distance(secondPoint);
+			if (isForcePointSelected == true) {
+				secondForcePoint = new ForcePoint(e.getPoint());
+				double distance = firstForcePoint.distance(secondForcePoint);
+				if(distance == 0)
+					return;
 				double ratio = arrowLineLength / distance;
-				double new_X = ((1-ratio)*firstPoint.getX())+ratio * secondPoint.getX();
-				double new_Y = ((1-ratio)*firstPoint.getY())+ratio * secondPoint.getY();
-				ZPoint newPoint= new ZPoint((int) new_X, (int) new_Y, 0);
+				double new_X = ((1 - ratio) * firstForcePoint.getX()) + ratio * secondForcePoint.getX();
+				double new_Y = ((1 - ratio) * firstForcePoint.getY()) + ratio * secondForcePoint.getY();
+				ForcePoint newPoint = new ForcePoint((int) new_X, (int) new_Y);
 				Graphics2D g = canvasImage.createGraphics();
-				g.drawImage(subImage, (int) firstPoint.getX()-arrowLenght, (int) firstPoint.getY()-arrowLenght, (int) firstPoint.getX()+arrowLenght, (int) firstPoint.getY()+arrowLenght, 0, 0, arrowLenght*2, arrowLenght*2, null);
+				g.drawImage(subImage, (int) firstForcePoint.getX() - arrowLenght, (int) firstForcePoint.getY() - arrowLenght,
+						(int) firstForcePoint.getX() + arrowLenght, (int) firstForcePoint.getY() + arrowLenght, 0, 0,
+						arrowLenght * 2, arrowLenght * 2, null);
 				g.dispose();
 				imageLabel.repaint();
-				drawArrowHead(firstPoint, newPoint);
-				
+				drawArrowHead(firstForcePoint, newPoint);
+
 			}
-			
+
 		}
-		
+
 	}
 
 	boolean saveFile(File temp, String s) {
@@ -865,6 +1086,12 @@ public class MainPage {
 		firstPoint = null;
 		secondPoint = null;
 		lineList.clear();
+	}
+	
+	void clearForceData() {
+		firstForcePoint = null;
+		secondForcePoint = null;
+		fpList.clear();
 	}
 
 	void clearFBDDefinigVariables() {
@@ -987,44 +1214,60 @@ public class MainPage {
 		g.dispose();
 		imageLabel.repaint();
 	}
-	
+
+	void drawForcePoints(ArrayList<ForcePoint> fpList) {
+		Graphics2D g = canvasImage.createGraphics();
+		for (ForcePoint p : fpList) {
+			if (p.isCorrect()) {
+				p.setCorrect(false);
+			}
+			g.drawImage(forcePointImage, p.x - 15, p.y - 15, null);
+			// g.setColor(Color.BLACK);
+			// g.drawString(Integer.toString(p.getCutCounter()), p.x - 15, p.y -
+			// 15);
+
+		}
+		g.dispose();
+		imageLabel.repaint();
+	}
+
 	private void drawArrowHead(Point p1, Point p2) {
 		int x1 = (int) p1.getX();
 		int y1 = (int) p1.getY();
 		int x2 = (int) p2.getX();
 		int y2 = (int) p2.getY();
-		
+
 		Graphics2D g2d = canvasImage.createGraphics();
 		AffineTransform tx = new AffineTransform();
-		Line2D.Double line = new Line2D.Double(x1,y1,x2,y2);
-		
-		g2d.setColor(Color.BLACK);
+		Line2D.Double line = new Line2D.Double(x1, y1, x2, y2);
+
+		g2d.setColor(forceColor);
 		g2d.drawLine(x1, y1, x2, y2);
 
 		Polygon arrowHead = new Polygon();
-		arrowHead.addPoint( 0,5);
-		arrowHead.addPoint( -5, -5);
-		arrowHead.addPoint( 5,-5);
+		arrowHead.addPoint(0, 5);
+		arrowHead.addPoint(-5, -5);
+		arrowHead.addPoint(5, -5);
 
-	    tx.setToIdentity();
-	    double angle = Math.atan2(line.y2-line.y1, line.x2-line.x1);
-	    tx.translate(line.x2, line.y2);
-	    tx.rotate((angle-Math.PI/2d));  
+		tx.setToIdentity();
+		double angle = Math.atan2(line.y2 - line.y1, line.x2 - line.x1);
+		tx.translate(line.x2, line.y2);
+		tx.rotate((angle - Math.PI / 2d));
 
-	    Graphics2D g = (Graphics2D) g2d.create();
-	    g.setColor(Color.black);
-	    g.setTransform(tx);   
-	    g.fill(arrowHead);
-	    g.dispose();
-	    
-	    imageLabel.repaint();
+		Graphics2D g = (Graphics2D) g2d.create();
+		g.setColor(forceColor);
+		g.setTransform(tx);
+		g.fill(arrowHead);
+		g.dispose();
+
+		imageLabel.repaint();
 	}
-	
+
 	static BufferedImage deepCopy(BufferedImage bi) {
-		 ColorModel cm = bi.getColorModel();
-		 boolean isAlphaPremultiplied = cm.isAlphaPremultiplied();
-		 WritableRaster raster = bi.copyData(null);
-		 return new BufferedImage(cm, raster, isAlphaPremultiplied, null);
-		}
+		ColorModel cm = bi.getColorModel();
+		boolean isAlphaPremultiplied = cm.isAlphaPremultiplied();
+		WritableRaster raster = bi.copyData(null);
+		return new BufferedImage(cm, raster, isAlphaPremultiplied, null);
+	}
 
 }
