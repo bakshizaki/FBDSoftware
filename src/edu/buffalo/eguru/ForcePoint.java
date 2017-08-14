@@ -18,24 +18,26 @@ public class ForcePoint extends Point {
 	//true if point has a froce/moment attached to it
 	boolean isCorrect = false;
 
-	
-	enum forceType {
-		KNOWN, UNKNOWN, CLOCKWISE, ANTICLOCKWISE
+	enum EntityType {
+		FORCE, MOMENT
+	}
+	enum EntityProperty {
+		KNOWN, UNKNOWN
 	}
 	
-	forceType type;
+	enum EntityDirection {
+		 CLOCKWISE, ANTICLOCKWISE
+	}
+	
+	EntityProperty property;
+	EntityType type;
+	EntityDirection direction;
 	int angle;
 	public boolean isSelected() {
 		return isSelected;
 	}
 	public void setSelected(boolean isSelected) {
 		this.isSelected = isSelected;
-	}
-	public forceType getType() {
-		return type;
-	}
-	public void setType(forceType type) {
-		this.type = type;
 	}
 	public int getAngle() {
 		return angle;
@@ -49,6 +51,30 @@ public class ForcePoint extends Point {
 
 	public void setCorrect(boolean isCorrect) {
 		this.isCorrect = isCorrect;
+	}
+
+	public EntityProperty getProperty() {
+		return property;
+	}
+
+	public void setProperty(EntityProperty property) {
+		this.property = property;
+	}
+
+	public EntityType getType() {
+		return type;
+	}
+
+	public void setType(EntityType type) {
+		this.type = type;
+	}
+
+	public EntityDirection getDirection() {
+		return direction;
+	}
+
+	public void setDirection(EntityDirection direction) {
+		this.direction = direction;
 	}
 
 
