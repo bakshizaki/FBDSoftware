@@ -29,8 +29,8 @@ public class ForcePoint extends Point {
 		 CLOCKWISE, ANTICLOCKWISE
 	}
 	
-	EntityProperty property;
 	EntityType type;
+	EntityProperty property;
 	EntityDirection direction;
 	int angle;
 	public boolean isSelected() {

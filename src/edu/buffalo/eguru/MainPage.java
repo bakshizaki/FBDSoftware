@@ -99,6 +99,13 @@ public class MainPage {
 	// list of forcepoints
 	ArrayList<ForcePoint> fpList = new ArrayList<ForcePoint>();
 
+	// list of which contains data for all the forces, their angles, moments
+	// etc.
+	ArrayList<ForcePoint> forceDataList = new ArrayList<ForcePoint>();
+
+	// list of correct forces loaded from file
+	ArrayList<ForcePoint> correctForceDataList = new ArrayList<ForcePoint>();
+
 	Point fbdStart;
 	Point fbdRecent;
 	ZPoint firstPoint, secondPoint;
@@ -119,19 +126,22 @@ public class MainPage {
 	static final Color KNOWN_FORCE_COLOR = new Color(0, 153, 51);
 	static final Color UNKNOWN_FORCE_COLOR = Color.RED;
 	Color forceColor = null;
-	
+
 	ForcePoint.EntityType currentType = null;
-	ForcePoint.EntityProperty currentProperty= null;
+	ForcePoint.EntityProperty currentProperty = null;
 	ForcePoint.EntityDirection currentDirection = null;
-	
-	//Force Toolbar radiobuttons
+
+	// Force Toolbar radiobuttons
 	JRadioButton selectForce;
 	JRadioButton selectMoment;
 	JRadioButton selectProperyKnown;
 	JRadioButton selectProperyUnknown;
 	JRadioButton selectDirectionCW;
 	JRadioButton selectDirectionCCW;
-	
+	JButton submitForces;
+
+	int ANGLE_TOLERENCE = 5;
+
 	public JComponent getGui() {
 		if (gui == null) {
 
@@ -286,28 +296,28 @@ public class MainPage {
 	JToolBar getForceToolBar() {
 		JToolBar tb = new JToolBar(JToolBar.VERTICAL);
 		tb.setFloatable(false);
-		
+
 		selectForce = new JRadioButton("Force");
 		selectForce.addActionListener(new ActionListener() {
-			
+
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				currentType = EntityType.FORCE;
-
-				
+				selectDirectionCW.setEnabled(false);
+				selectDirectionCCW.setEnabled(false);
 			}
 		});
-		
+
 		selectMoment = new JRadioButton("Moment");
 		selectMoment.addActionListener(new ActionListener() {
-			
+
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				currentType = EntityType.MOMENT;
-				
+				selectDirectionCW.setEnabled(true);
+				selectDirectionCCW.setEnabled(true);
 			}
 		});
-		
 
 		selectProperyKnown = new JRadioButton("Known");
 		selectProperyKnown.addActionListener(new ActionListener() {
@@ -330,23 +340,112 @@ public class MainPage {
 
 		selectDirectionCW = new JRadioButton("Clockwise");
 		selectDirectionCW.addActionListener(new ActionListener() {
-			
+
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				currentDirection = EntityDirection.CLOCKWISE;
-				
+
 			}
 		});
-		
 
 		selectDirectionCCW = new JRadioButton("Anticlockwise");
 		selectDirectionCCW.addActionListener(new ActionListener() {
-			
+
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				currentDirection = EntityDirection.ANTICLOCKWISE;
+
+			}
+		});
+
+		submitForces = new JButton("Submit");
+		submitForces.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent e) {
+
+				// there are 2 list, correctForceDataList (A) contains all
+				// correct answers, forceDataList (B) contains answer entered by
+				// user
+				// To check correctness we have to check every correct
+				// ForcePoint from A is in B, and every correct ForcePoint frmo
+				// B is in A.
+				
+				boolean forceFinalAnswer = true;
+				
+				for(ForcePoint p: correctForceDataList) {
+					if(p.isCorrect()) {
+						if(!forceListContains(forceDataList, p))
+							forceFinalAnswer = false;
+					}
+				}
+				for(ForcePoint p: forceDataList) {
+					if(p.isCorrect()) {
+						if(!forceListContains(correctForceDataList, p))
+							forceFinalAnswer = false;
+					}
+				}
+				
+				forceDataList.clear();
+				
+				if(forceFinalAnswer == true)
+					statusLabel.setText("Force Correct");
+				else
+					statusLabel.setText("Force Incorrect");
 				
 			}
+
+			private boolean forceListContains(ArrayList<ForcePoint> forceList, ForcePoint p) {
+				if(p.type == EntityType.FORCE) {
+					return forceListContainsForce(forceList, p);
+				} else if(p.type == EntityType.MOMENT) {
+					return forceListContainsMoment(forceList, p);
+				}
+				return false;
+			}
+
+			private boolean forceListContainsMoment(ArrayList<ForcePoint> forceList, ForcePoint p) {
+				for(ForcePoint listPoint:forceList) {
+					if(p.x == listPoint.x && p.y == listPoint.y && listPoint.isCorrect == true && p.type == listPoint.type && p.getProperty() == listPoint.getProperty() && p.getDirection() == listPoint.getDirection())
+						return true;
+				}
+				return false;
+			}
+
+			private boolean forceListContainsForce(ArrayList<ForcePoint> forceList, ForcePoint p) {
+				for(ForcePoint listPoint:forceList) {
+					if(p.x == listPoint.x && p.y == listPoint.y && listPoint.isCorrect == true && p.type == listPoint.type && p.getProperty() == listPoint.getProperty() && equalWithTolerance(p.getAngle(),listPoint.getAngle()))
+						return true;
+				}
+				return false;
+			}
+
+			private boolean equalWithTolerance(int angle1, int angle2) {
+				int upperTolerance = angle2 + ANGLE_TOLERENCE;
+				int lowerTolerance = angle2 - ANGLE_TOLERENCE;
+				
+				if(lowerTolerance < 0) {
+					lowerTolerance = 360 + lowerTolerance;
+					if((angle1 >= 0 && angle1 <= upperTolerance) || (angle1 >= lowerTolerance && angle1 <= 359))
+						return true;
+					else
+						return false;
+				}
+				if(upperTolerance > 359) {
+					upperTolerance = upperTolerance - 360;
+					if((angle1 >= 0 && angle1 <= upperTolerance) || (angle1 >= lowerTolerance && angle1 <= 359))
+						return true;
+					else
+						return false;
+				}
+				else {
+					if((angle1<=angle2+ANGLE_TOLERENCE ) && (angle1>=angle2-ANGLE_TOLERENCE ))
+						return true;
+					else
+						return false;
+				}
+			}
+			
 		});
 
 		ButtonGroup bg2 = new ButtonGroup();
@@ -356,11 +455,10 @@ public class MainPage {
 		ButtonGroup bg = new ButtonGroup();
 		bg.add(selectProperyKnown);
 		bg.add(selectProperyUnknown);
-		
+
 		ButtonGroup bg3 = new ButtonGroup();
 		bg3.add(selectDirectionCW);
 		bg3.add(selectDirectionCCW);
-		
 
 		tb.add(selectForce);
 		tb.add(selectMoment);
@@ -370,6 +468,8 @@ public class MainPage {
 		tb.addSeparator();
 		tb.add(selectDirectionCW);
 		tb.add(selectDirectionCCW);
+		tb.addSeparator();
+		tb.add(submitForces);
 		tb.setVisible(false);
 		return tb;
 
@@ -398,6 +498,7 @@ public class MainPage {
 						cutCount = 1;
 						cutsList.clear();
 						fpList.clear();
+						forceDataList.clear();
 						clearFBDData();
 					} catch (IOException e1) {
 						showError(e1);
@@ -494,6 +595,163 @@ public class MainPage {
 			}
 		});
 
+		JMenuItem saveForceData = new JMenuItem("Save Force Data");
+		saveForceData.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				StringBuilder sb = new StringBuilder();
+				sb.append("Forces:\n");
+				for (ForcePoint fp : forceDataList) {
+					// FORMAT: x , y , is_correct , EntityType, EntityProperty,
+					// EntityDirection, angle
+					String typeString = (fp.type == EntityType.FORCE) ? "Force" : "Moment";
+					String propertyString = (fp.property == EntityProperty.KNOWN) ? "Known" : "Unknown";
+					String directionString = (fp.direction == EntityDirection.CLOCKWISE) ? "Clockwise"
+							: "Anticlockwise";
+					sb.append(fp.x + "," + fp.y + "," + fp.isCorrect() + "," + typeString + "," + propertyString + ","
+							+ directionString + "," + fp.angle + "\n");
+				}
+
+				// add the points are incorrect i.e. no force moment attached to
+				// it
+				for (ForcePoint fp : fpList) {
+					if (fp.isCorrect() == false) {
+						String typeString = (fp.type == EntityType.FORCE) ? "Force" : "Moment";
+						String propertyString = (fp.property == EntityProperty.KNOWN) ? "Known" : "Unknown";
+						String directionString = (fp.direction == EntityDirection.CLOCKWISE) ? "Clockwise"
+								: "Anticlockwise";
+						sb.append(fp.x + "," + fp.y + "," + fp.isCorrect() + "," + typeString + "," + propertyString
+								+ "," + directionString + "," + fp.angle + "\n");
+					}
+				}
+
+				sb.append("End Forces");
+				File temp = null;
+				JFileChooser chooser = new JFileChooser();
+				chooser.setDialogTitle("Save As...");
+				chooser.setApproveButtonText("Save");
+				chooser.setApproveButtonMnemonic(KeyEvent.VK_S);
+				chooser.setApproveButtonToolTipText("Click me to save!");
+
+				do {
+					if (chooser.showSaveDialog(frame) != JFileChooser.APPROVE_OPTION)
+						return;
+					temp = chooser.getSelectedFile();
+					if (!temp.exists())
+						break;
+					if (JOptionPane.showConfirmDialog(frame,
+							"<html>" + temp.getPath() + " already exists.<br>Do you want to replace it?<html>",
+							"Save As", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION)
+						break;
+				} while (true);
+
+				saveFile(temp, sb.toString());
+
+				// System.out.println(sb.toString());
+
+			}
+		});
+
+		JMenuItem loadForceData = new JMenuItem("Load Force Data");
+		loadForceData.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				JFileChooser chooser = new JFileChooser();
+				int result = chooser.showOpenDialog(gui);
+				if (result == JFileChooser.APPROVE_OPTION) {
+					File f = chooser.getSelectedFile();
+					ArrayList<String> fileText = readTextFile(f);
+					ArrayList<String> forcesString = getForcesFromText(fileText);
+					fpList.clear();
+					correctForceDataList.clear();
+					forceDataList.clear();
+					for (int i = 0; i < forcesString.size(); i++) {
+						ForcePoint fp = getFpFromString(forcesString.get(i));
+						correctForceDataList.add(fp);
+						if (!fpListContainsLocation(fpList, fp)) {
+							fpList.add(fp);
+						}
+					}
+
+					for (ForcePoint fp : correctForceDataList) {
+						displayForcePoint(fp.x, fp.y);
+						if (fp.isCorrect == true) {
+							if (fp.type == EntityType.FORCE)
+								displayArrow(fp.x, fp.y, fp.angle, fp.property);
+							else if (fp.type == EntityType.MOMENT)
+								displayMoment(fp.x, fp.y, fp.direction, fp.property);
+						}
+					}
+
+				}
+
+			}
+
+			private void displayMoment(int x, int y, EntityDirection direction, EntityProperty property) {
+				Color arcColor = null;
+				currentProperty = property;
+				currentDirection = direction;
+				Point p = new Point(x, y);
+				Graphics2D g = canvasImage.createGraphics();
+				int arcRadius = arrowLenght / 2;
+				if (currentProperty == EntityProperty.KNOWN)
+					arcColor = KNOWN_FORCE_COLOR;
+				else if (currentProperty == EntityProperty.UNKNOWN)
+					arcColor = UNKNOWN_FORCE_COLOR;
+				g.setColor(arcColor);
+
+				if (currentDirection == EntityDirection.CLOCKWISE) {
+					g.drawArc(p.x - arcRadius, p.y - arcRadius, 2 * arcRadius, 2 * arcRadius, 300, 120);
+
+					Point arcArrowStartPoint = new Point((int) (arcRadius * Math.cos(Math.toRadians(315))),
+							(int) (-1 * arcRadius * Math.sin(Math.toRadians(315))));
+					arcArrowStartPoint = new Point(p.x + arcArrowStartPoint.x, p.y + arcArrowStartPoint.y);
+					Point arcArrowEndPoint = new Point((int) (arcRadius * Math.cos(Math.toRadians(300))),
+							(int) (-1 * arcRadius * Math.sin(Math.toRadians(300))));
+					arcArrowEndPoint = new Point(p.x + arcArrowEndPoint.x, p.y + arcArrowEndPoint.y);
+					drawArrow(arcArrowStartPoint, arcArrowEndPoint);
+
+				} else if (currentDirection == EntityDirection.ANTICLOCKWISE) {
+					g.drawArc(p.x - arcRadius, p.y - arcRadius, 2 * arcRadius, 2 * arcRadius, 120, 120);
+
+					Point arcArrowStartPoint = new Point((int) (arcRadius * Math.cos(Math.toRadians(135))),
+							(int) (-1 * arcRadius * Math.sin(Math.toRadians(135))));
+					arcArrowStartPoint = new Point(p.x + arcArrowStartPoint.x, p.y + arcArrowStartPoint.y);
+					Point arcArrowEndPoint = new Point((int) (arcRadius * Math.cos(Math.toRadians(120))),
+							(int) (-1 * arcRadius * Math.sin(Math.toRadians(120))));
+					arcArrowEndPoint = new Point(p.x + arcArrowEndPoint.x, p.y + arcArrowEndPoint.y);
+					drawArrow(arcArrowStartPoint, arcArrowEndPoint);
+
+				}
+
+				g.dispose();
+				imageLabel.repaint();
+
+			}
+
+			private void displayArrow(int x, int y, int angle, EntityProperty property) {
+				Point p1 = new Point(x, y);
+				int new_X = (int) (arrowLineLength * Math.cos(Math.toRadians(angle)));
+				int new_Y = (int) (-1 * arrowLineLength * Math.sin(Math.toRadians(angle)));
+				Point p2 = new Point(x + new_X, y + new_Y);
+				currentProperty = property;
+				drawArrow(p1, p2);
+
+			}
+
+			private void displayForcePoint(int x, int y) {
+				Graphics2D g = canvasImage.createGraphics();
+				g.setColor(Color.black);
+
+				g.drawImage(forcePointImage, x - 15, y - 15, null);
+				g.dispose();
+				imageLabel.repaint();
+
+			}
+		});
+
 		JMenuItem exitItem = new JMenuItem("Exit");
 		exitItem.setMnemonic('x');
 		exitItem.addActionListener(new ActionListener() {
@@ -501,6 +759,7 @@ public class MainPage {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				// TODO Auto-generated method stub
+				System.exit(0);
 
 			}
 		});
@@ -508,10 +767,22 @@ public class MainPage {
 		file.add(openItem);
 		file.add(saveFBDData);
 		file.add(loadFBDData);
+		file.add(saveForceData);
+		file.add(loadForceData);
 		file.add(exitItem);
 
 		return file;
 
+	}
+
+	boolean fpListContainsLocation(ArrayList<ForcePoint> fpList, ForcePoint fp) {
+		boolean retValue = false;
+		for (ForcePoint p : fpList) {
+			if (p.x == fp.x && p.y == fp.y) {
+				retValue = true;
+			}
+		}
+		return retValue;
 	}
 
 	JMenu getModesMenu() {
@@ -663,9 +934,9 @@ public class MainPage {
 				deleteAll.setEnabled(false);
 				restartFBD.setEnabled(false);
 				forceToolbar.setVisible(false);
-				
+
 				// drawOriginal();
-				drawForcePoints(fpList);
+				// drawForcePoints(fpList);
 
 				// remove all mouselisteners first
 				for (MouseListener m : imageLabel.getMouseListeners()) {
@@ -688,7 +959,7 @@ public class MainPage {
 				deleteAll.setEnabled(true);
 				restartFBD.setEnabled(false);
 				forceToolbar.setVisible(false);
-				
+
 				drawOriginal();
 				drawForcePoints(fpList);
 
@@ -701,29 +972,32 @@ public class MainPage {
 
 			}
 		});
-		
+
 		JMenuItem drawForces = new JMenuItem("Draw Forces");
 		drawForces.addActionListener(new ActionListener() {
 
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				statusLabel.setText("Mode: Forces");
+				statusLabel.setText("Mode: Define Forces and Moments");
 				deleteCuts.setEnabled(false);
 				deleteAll.setEnabled(false);
 				restartFBD.setEnabled(false);
 
 				clearFBDDefinigVariables();
-				drawOriginal();
-				drawForcePoints(fpList);
-				
-				//setup defauls of forceToolbar
+				// drawOriginal();
+				// drawForcePoints(fpList);
+
+				// setup defauls of forceToolbar
 				selectForce.setSelected(true);
 				selectMoment.setSelected(false);
 				selectProperyKnown.setSelected(true);
 				selectProperyUnknown.setSelected(false);
 				selectDirectionCW.setSelected(true);
 				selectDirectionCCW.setSelected(false);
-				
+				selectDirectionCW.setEnabled(false);
+				selectDirectionCCW.setEnabled(false);
+				submitForces.setVisible(false);
+
 				currentType = EntityType.FORCE;
 				currentProperty = EntityProperty.KNOWN;
 				currentDirection = EntityDirection.CLOCKWISE;
@@ -733,7 +1007,7 @@ public class MainPage {
 				// SET FORCE COLOR
 				forceColor = KNOWN_FORCE_COLOR;
 
-				isFBDAnswered = false;
+				// isFBDAnswered = false;
 				for (MouseListener m : imageLabel.getMouseListeners()) {
 					imageLabel.removeMouseListener(m);
 				}
@@ -744,11 +1018,57 @@ public class MainPage {
 			}
 		});
 
+		JMenuItem forceTestMode = new JMenuItem("Test Mode");
+		forceTestMode.addActionListener(new ActionListener() {
 
-		
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				// TODO Auto-generated method stub
+				statusLabel.setText("Mode: Define Forces and Moments");
+				deleteCuts.setEnabled(false);
+				deleteAll.setEnabled(false);
+				restartFBD.setEnabled(false);
+
+				clearFBDDefinigVariables();
+				drawOriginal();
+				drawForcePoints(fpList);
+
+				// setup defauls of forceToolbar
+				selectForce.setSelected(true);
+				selectMoment.setSelected(false);
+				selectProperyKnown.setSelected(true);
+				selectProperyUnknown.setSelected(false);
+				selectDirectionCW.setSelected(true);
+				selectDirectionCCW.setSelected(false);
+				selectDirectionCW.setEnabled(false);
+				selectDirectionCCW.setEnabled(false);
+				submitForces.setVisible(true);
+
+				currentType = EntityType.FORCE;
+				currentProperty = EntityProperty.KNOWN;
+				currentDirection = EntityDirection.CLOCKWISE;
+
+				forceToolbar.setVisible(true);
+
+				if (forceDataList.size() > 0) {
+					correctForceDataList = new ArrayList<ForcePoint>(forceDataList);
+					forceDataList.clear();
+				}
+
+				for (MouseListener m : imageLabel.getMouseListeners()) {
+					imageLabel.removeMouseListener(m);
+				}
+
+				imageLabel.addMouseListener(new DrawEntityListener());
+				imageLabel.addMouseMotionListener(new DrawForcesMotionListener());
+
+			}
+		});
+
 		force.add(drawFP);
 		force.add(deleteFP);
 		force.add(drawForces);
+		force.add(forceTestMode);
 
 		return force;
 	}
@@ -1064,10 +1384,9 @@ public class MainPage {
 
 		@Override
 		public void mouseClicked(MouseEvent e) {
-			if(currentType == EntityType.FORCE) {
+			if (currentType == EntityType.FORCE) {
 				drawForce(e);
-			}
-			else if(currentType == EntityType.MOMENT) {
+			} else if (currentType == EntityType.MOMENT) {
 				drawMoment(e);
 			}
 
@@ -1075,7 +1394,7 @@ public class MainPage {
 		}
 
 	}
-	
+
 	void drawForce(MouseEvent e) {
 		Point clickedPoint = e.getPoint();
 		if (isForcePointSelected == false) {
@@ -1086,11 +1405,11 @@ public class MainPage {
 					isForcePointSelected = true;
 					firstForcePoint = p;
 
-					Graphics2D g = canvasImage.createGraphics();
-//					g.setColor(Color.green);
-//					g.drawRect(p.x - 15, p.y - 15, 30, 30);
-					g.dispose();
-					imageLabel.repaint();
+					// Graphics2D g = canvasImage.createGraphics();
+					// g.setColor(Color.green);
+					// g.drawRect(p.x - 15, p.y - 15, 30, 30);
+					// g.dispose();
+					// imageLabel.repaint();
 
 					subImage = deepCopy(canvasImage);
 					subImage = subImage.getSubimage(p.x - arrowLenght, p.y - arrowLenght, arrowLenght * 2,
@@ -1110,14 +1429,29 @@ public class MainPage {
 			double new_Y = ((1 - ratio) * firstForcePoint.getY()) + ratio * secondForcePoint.getY();
 			ForcePoint newPoint = new ForcePoint((int) new_X, (int) new_Y);
 			Graphics2D g = canvasImage.createGraphics();
-			g.drawImage(subImage, (int) firstForcePoint.getX() - arrowLenght, (int) firstForcePoint.getY() - arrowLenght,
-					(int) firstForcePoint.getX() + arrowLenght, (int) firstForcePoint.getY() + arrowLenght, 0, 0,
-					arrowLenght * 2, arrowLenght * 2, null);
+			g.drawImage(subImage, (int) firstForcePoint.getX() - arrowLenght,
+					(int) firstForcePoint.getY() - arrowLenght, (int) firstForcePoint.getX() + arrowLenght,
+					(int) firstForcePoint.getY() + arrowLenght, 0, 0, arrowLenght * 2, arrowLenght * 2, null);
 			g.dispose();
 			imageLabel.repaint();
 
 			drawArrow(firstForcePoint, newPoint);
-			// drawLineOnImage(firstPoint, secondPoint);
+
+			// mark the point as correct
+			firstForcePoint.setCorrect(true);
+
+			ForcePoint pointToAdd = new ForcePoint(firstForcePoint.x, firstForcePoint.y);
+			pointToAdd.setCorrect(true);
+			pointToAdd.setType(EntityType.FORCE);
+			pointToAdd.setProperty(
+					currentProperty == EntityProperty.KNOWN ? EntityProperty.KNOWN : EntityProperty.UNKNOWN);
+			// calculate angle
+			double angleRad = Math.atan2((new_Y - firstForcePoint.getY()) * -1, new_X - firstForcePoint.getX());
+			double angleDeg = Math.toDegrees(angleRad);
+			angleDeg = (angleDeg + 360) % 360;
+			pointToAdd.setAngle((int) angleDeg);
+
+			forceDataList.add(pointToAdd);
 		}
 	}
 
@@ -1127,43 +1461,58 @@ public class MainPage {
 		for (ForcePoint p : fpList) {
 			Rectangle clickThresholdRectangle = new Rectangle(p.x - 15, p.y - 15, 30, 30);
 			if (clickThresholdRectangle.contains(clickedPoint)) {
-				
+
 				Graphics2D g = canvasImage.createGraphics();
-//				g.setColor(Color.green);
-//				g.drawRect(p.x - 15, p.y - 15, 30, 30);
 				int arcRadius = arrowLenght / 2;
-				if(currentProperty == EntityProperty.KNOWN)
+				if (currentProperty == EntityProperty.KNOWN)
 					arcColor = KNOWN_FORCE_COLOR;
-				else if(currentProperty == EntityProperty.UNKNOWN)
+				else if (currentProperty == EntityProperty.UNKNOWN)
 					arcColor = UNKNOWN_FORCE_COLOR;
 				g.setColor(arcColor);
-				
-				if(currentDirection == EntityDirection.CLOCKWISE) {
+
+				if (currentDirection == EntityDirection.CLOCKWISE) {
 					g.drawArc(p.x - arcRadius, p.y - arcRadius, 2 * arcRadius, 2 * arcRadius, 300, 120);
 
-					Point arcArrowStartPoint = new Point((int)(arcRadius * Math.cos(Math.toRadians(315))), (int)(-1 * arcRadius * Math.sin(Math.toRadians(315))));
-					arcArrowStartPoint = new Point(p.x + arcArrowStartPoint.x , p.y + arcArrowStartPoint.y);
-					Point arcArrowEndPoint = new Point((int)(arcRadius * Math.cos(Math.toRadians(300))), (int)(-1 * arcRadius * Math.sin(Math.toRadians(300))));
+					Point arcArrowStartPoint = new Point((int) (arcRadius * Math.cos(Math.toRadians(315))),
+							(int) (-1 * arcRadius * Math.sin(Math.toRadians(315))));
+					arcArrowStartPoint = new Point(p.x + arcArrowStartPoint.x, p.y + arcArrowStartPoint.y);
+					Point arcArrowEndPoint = new Point((int) (arcRadius * Math.cos(Math.toRadians(300))),
+							(int) (-1 * arcRadius * Math.sin(Math.toRadians(300))));
 					arcArrowEndPoint = new Point(p.x + arcArrowEndPoint.x, p.y + arcArrowEndPoint.y);
 					drawArrow(arcArrowStartPoint, arcArrowEndPoint);
-					
-				}
-				else if(currentDirection == EntityDirection.ANTICLOCKWISE) {
+
+				} else if (currentDirection == EntityDirection.ANTICLOCKWISE) {
 					g.drawArc(p.x - arcRadius, p.y - arcRadius, 2 * arcRadius, 2 * arcRadius, 120, 120);
 
-					Point arcArrowStartPoint = new Point((int)(arcRadius * Math.cos(Math.toRadians(135))), (int)(-1 * arcRadius * Math.sin(Math.toRadians(135))));
-					arcArrowStartPoint = new Point(p.x + arcArrowStartPoint.x , p.y + arcArrowStartPoint.y);
-					Point arcArrowEndPoint = new Point((int)(arcRadius * Math.cos(Math.toRadians(120))), (int)(-1 * arcRadius * Math.sin(Math.toRadians(120))));
+					Point arcArrowStartPoint = new Point((int) (arcRadius * Math.cos(Math.toRadians(135))),
+							(int) (-1 * arcRadius * Math.sin(Math.toRadians(135))));
+					arcArrowStartPoint = new Point(p.x + arcArrowStartPoint.x, p.y + arcArrowStartPoint.y);
+					Point arcArrowEndPoint = new Point((int) (arcRadius * Math.cos(Math.toRadians(120))),
+							(int) (-1 * arcRadius * Math.sin(Math.toRadians(120))));
 					arcArrowEndPoint = new Point(p.x + arcArrowEndPoint.x, p.y + arcArrowEndPoint.y);
 					drawArrow(arcArrowStartPoint, arcArrowEndPoint);
 
 				}
-				
+
 				g.dispose();
 				imageLabel.repaint();
+
+				// mark p as correct
+				p.setCorrect(true);
+				ForcePoint pointToAdd = new ForcePoint(p.x, p.y);
+				pointToAdd.setCorrect(true);
+				pointToAdd.setType(EntityType.MOMENT);
+				pointToAdd.setProperty(
+						currentProperty == EntityProperty.KNOWN ? EntityProperty.KNOWN : EntityProperty.UNKNOWN);
+				pointToAdd.setDirection(currentDirection == EntityDirection.CLOCKWISE ? EntityDirection.CLOCKWISE
+						: EntityDirection.ANTICLOCKWISE);
+
+				forceDataList.add(pointToAdd);
+
 			}
 		}
 	}
+
 	class DrawForcesMotionListener implements MouseMotionListener {
 
 		@Override
@@ -1177,22 +1526,22 @@ public class MainPage {
 			if (isForcePointSelected == true) {
 				secondForcePoint = new ForcePoint(e.getPoint());
 				double distance = firstForcePoint.distance(secondForcePoint);
-				if(distance == 0)
+				if (distance == 0)
 					return;
 				double ratio = arrowLineLength / distance;
 				double new_X = ((1 - ratio) * firstForcePoint.getX()) + ratio * secondForcePoint.getX();
 				double new_Y = ((1 - ratio) * firstForcePoint.getY()) + ratio * secondForcePoint.getY();
 				ForcePoint newPoint = new ForcePoint((int) new_X, (int) new_Y);
-				double angleRad = Math.atan2((new_Y - firstForcePoint.getY())*-1, new_X - firstForcePoint.getX());
+				double angleRad = Math.atan2((new_Y - firstForcePoint.getY()) * -1, new_X - firstForcePoint.getX());
 				double angleDeg = Math.toDegrees(angleRad);
-				angleDeg = (angleDeg + 360) % 360; 
-				
+				angleDeg = (angleDeg + 360) % 360;
+
 				Graphics2D g = canvasImage.createGraphics();
-				g.drawImage(subImage, (int) firstForcePoint.getX() - arrowLenght, (int) firstForcePoint.getY() - arrowLenght,
-						(int) firstForcePoint.getX() + arrowLenght, (int) firstForcePoint.getY() + arrowLenght, 0, 0,
-						arrowLenght * 2, arrowLenght * 2, null);
+				g.drawImage(subImage, (int) firstForcePoint.getX() - arrowLenght,
+						(int) firstForcePoint.getY() - arrowLenght, (int) firstForcePoint.getX() + arrowLenght,
+						(int) firstForcePoint.getY() + arrowLenght, 0, 0, arrowLenght * 2, arrowLenght * 2, null);
 				g.setColor(Color.BLACK);
-				g.drawString(Integer.toString((int) angleDeg), firstForcePoint.x - 15, firstForcePoint.y - 15);
+				g.drawString(Integer.toString((int) angleDeg) + "°", firstForcePoint.x - 15, firstForcePoint.y - 15);
 				g.dispose();
 				imageLabel.repaint();
 				drawArrow(firstForcePoint, newPoint);
@@ -1226,7 +1575,7 @@ public class MainPage {
 		secondPoint = null;
 		lineList.clear();
 	}
-	
+
 	void clearForceData() {
 		firstForcePoint = null;
 		secondForcePoint = null;
@@ -1289,6 +1638,20 @@ public class MainPage {
 
 	}
 
+	private ArrayList<String> getForcesFromText(ArrayList<String> fileText) {
+		ArrayList<String> pointsString = new ArrayList<String>();
+		int dataIdx = 0;
+		while (!fileText.get(dataIdx).contains("Forces:"))
+			dataIdx++;
+		dataIdx++;
+		while (!fileText.get(dataIdx).contains("End Forces") && dataIdx < fileText.size()) {
+			pointsString.add(fileText.get(dataIdx));
+			dataIdx++;
+		}
+		return pointsString;
+
+	}
+
 	private ArrayList<String> getLinesFromText(ArrayList<String> fileText) {
 		ArrayList<String> linesString = new ArrayList<String>();
 		int dataIdx = 0;
@@ -1301,6 +1664,47 @@ public class MainPage {
 		}
 		return linesString;
 
+	}
+
+	private ForcePoint getFpFromString(String str) {
+		ForcePoint fp = null;
+		String[] strSplit = str.split(",");
+		int x = Integer.parseInt(strSplit[0]);
+		int y = Integer.parseInt(strSplit[1]);
+
+		boolean isCorrect = false;
+		if (strSplit[2].equals("true"))
+			isCorrect = true;
+		else if (strSplit[2].equals("false"))
+			isCorrect = false;
+
+		EntityType type = null;
+		if (strSplit[3].equals("Force"))
+			type = EntityType.FORCE;
+		else if (strSplit[3].equals("Moment"))
+			type = EntityType.MOMENT;
+
+		EntityProperty property = null;
+		if (strSplit[4].equals("Known"))
+			property = EntityProperty.KNOWN;
+		else if (strSplit[4].equals("Unknown"))
+			property = EntityProperty.UNKNOWN;
+
+		EntityDirection direction = null;
+		if (strSplit[5].equals("Clockwise"))
+			direction = EntityDirection.CLOCKWISE;
+		else if (strSplit[5].equals("Anticlockwise"))
+			direction = EntityDirection.ANTICLOCKWISE;
+
+		int angle = Integer.parseInt(strSplit[6]);
+
+		fp = new ForcePoint(x, y);
+		fp.setCorrect(isCorrect);
+		fp.setType(type);
+		fp.setProperty(property);
+		fp.setDirection(direction);
+		fp.setAngle(angle);
+		return fp;
 	}
 
 	void drawLineOnImage(Point p1, Point p2) {
@@ -1375,18 +1779,18 @@ public class MainPage {
 		int y1 = (int) p1.getY();
 		int x2 = (int) p2.getX();
 		int y2 = (int) p2.getY();
-		
+
 		Color arrowColor = null;
 
 		Graphics2D g2d = canvasImage.createGraphics();
 		AffineTransform tx = new AffineTransform();
 		Line2D.Double line = new Line2D.Double(x1, y1, x2, y2);
 
-		if(currentProperty == EntityProperty.KNOWN)
+		if (currentProperty == EntityProperty.KNOWN)
 			arrowColor = KNOWN_FORCE_COLOR;
-		else if(currentProperty == EntityProperty.UNKNOWN)
+		else if (currentProperty == EntityProperty.UNKNOWN)
 			arrowColor = UNKNOWN_FORCE_COLOR;
-		
+
 		g2d.setColor(arrowColor);
 		g2d.drawLine(x1, y1, x2, y2);
 
