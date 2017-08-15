@@ -5,7 +5,6 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.EventQueue;
-import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.GridBagLayout;
 import java.awt.Image;
@@ -21,7 +20,6 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
-import java.awt.event.MouseMotionAdapter;
 import java.awt.event.MouseMotionListener;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Line2D;
@@ -30,7 +28,6 @@ import java.awt.image.ColorModel;
 import java.awt.image.WritableRaster;
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileFilter;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
@@ -38,11 +35,14 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.Stack;
 
 import javax.imageio.ImageIO;
-import javax.sound.sampled.Line;
+import javax.swing.AbstractAction;
+import javax.swing.Action;
 import javax.swing.ButtonGroup;
 import javax.swing.ImageIcon;
+import javax.swing.InputMap;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JFileChooser;
@@ -56,6 +56,7 @@ import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 import javax.swing.JToolBar;
+import javax.swing.KeyStroke;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.border.EmptyBorder;
@@ -82,6 +83,8 @@ public class MainPage {
 	int MODE_TEST = 4;
 	int MODE_DRAW_FP = 5;
 	int MODE_DEL_FP = 6;
+	int MODE_DRAW_FORCE = 7;
+	int MODE_TEST_FORCE = 8;
 
 	int current_mode = MODE_NONE;
 	private Image scissor = null;
@@ -138,9 +141,14 @@ public class MainPage {
 	JRadioButton selectProperyUnknown;
 	JRadioButton selectDirectionCW;
 	JRadioButton selectDirectionCCW;
+	JButton undoButton;
 	JButton submitForces;
 
 	int ANGLE_TOLERENCE = 5;
+
+	BufferedImage undoImage;
+	int UNDO_LIMIT = 10;
+	SizedStack<BufferedImage> undoImageStack = new SizedStack<BufferedImage>(10);
 
 	public JComponent getGui() {
 		if (gui == null) {
@@ -358,6 +366,16 @@ public class MainPage {
 			}
 		});
 
+		undoButton = new JButton("Undo");
+		undoButton.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				undo();
+
+			}
+		});
+
 		submitForces = new JButton("Submit");
 		submitForces.addActionListener(new ActionListener() {
 
@@ -370,51 +388,55 @@ public class MainPage {
 				// To check correctness we have to check every correct
 				// ForcePoint from A is in B, and every correct ForcePoint frmo
 				// B is in A.
-				
+
 				boolean forceFinalAnswer = true;
-				
-				for(ForcePoint p: correctForceDataList) {
-					if(p.isCorrect()) {
-						if(!forceListContains(forceDataList, p))
+
+				for (ForcePoint p : correctForceDataList) {
+					if (p.isCorrect()) {
+						if (!forceListContains(forceDataList, p))
 							forceFinalAnswer = false;
 					}
 				}
-				for(ForcePoint p: forceDataList) {
-					if(p.isCorrect()) {
-						if(!forceListContains(correctForceDataList, p))
+				for (ForcePoint p : forceDataList) {
+					if (p.isCorrect()) {
+						if (!forceListContains(correctForceDataList, p))
 							forceFinalAnswer = false;
 					}
 				}
-				
+
 				forceDataList.clear();
-				
-				if(forceFinalAnswer == true)
+
+				if (forceFinalAnswer == true)
 					statusLabel.setText("Force Correct");
 				else
 					statusLabel.setText("Force Incorrect");
-				
+
 			}
 
 			private boolean forceListContains(ArrayList<ForcePoint> forceList, ForcePoint p) {
-				if(p.type == EntityType.FORCE) {
+				if (p.type == EntityType.FORCE) {
 					return forceListContainsForce(forceList, p);
-				} else if(p.type == EntityType.MOMENT) {
+				} else if (p.type == EntityType.MOMENT) {
 					return forceListContainsMoment(forceList, p);
 				}
 				return false;
 			}
 
 			private boolean forceListContainsMoment(ArrayList<ForcePoint> forceList, ForcePoint p) {
-				for(ForcePoint listPoint:forceList) {
-					if(p.x == listPoint.x && p.y == listPoint.y && listPoint.isCorrect == true && p.type == listPoint.type && p.getProperty() == listPoint.getProperty() && p.getDirection() == listPoint.getDirection())
+				for (ForcePoint listPoint : forceList) {
+					if (p.x == listPoint.x && p.y == listPoint.y && listPoint.isCorrect == true
+							&& p.type == listPoint.type && p.getProperty() == listPoint.getProperty()
+							&& p.getDirection() == listPoint.getDirection())
 						return true;
 				}
 				return false;
 			}
 
 			private boolean forceListContainsForce(ArrayList<ForcePoint> forceList, ForcePoint p) {
-				for(ForcePoint listPoint:forceList) {
-					if(p.x == listPoint.x && p.y == listPoint.y && listPoint.isCorrect == true && p.type == listPoint.type && p.getProperty() == listPoint.getProperty() && equalWithTolerance(p.getAngle(),listPoint.getAngle()))
+				for (ForcePoint listPoint : forceList) {
+					if (p.x == listPoint.x && p.y == listPoint.y && listPoint.isCorrect == true
+							&& p.type == listPoint.type && p.getProperty() == listPoint.getProperty()
+							&& equalWithTolerance(p.getAngle(), listPoint.getAngle()))
 						return true;
 				}
 				return false;
@@ -423,29 +445,28 @@ public class MainPage {
 			private boolean equalWithTolerance(int angle1, int angle2) {
 				int upperTolerance = angle2 + ANGLE_TOLERENCE;
 				int lowerTolerance = angle2 - ANGLE_TOLERENCE;
-				
-				if(lowerTolerance < 0) {
+
+				if (lowerTolerance < 0) {
 					lowerTolerance = 360 + lowerTolerance;
-					if((angle1 >= 0 && angle1 <= upperTolerance) || (angle1 >= lowerTolerance && angle1 <= 359))
+					if ((angle1 >= 0 && angle1 <= upperTolerance) || (angle1 >= lowerTolerance && angle1 <= 359))
 						return true;
 					else
 						return false;
 				}
-				if(upperTolerance > 359) {
+				if (upperTolerance > 359) {
 					upperTolerance = upperTolerance - 360;
-					if((angle1 >= 0 && angle1 <= upperTolerance) || (angle1 >= lowerTolerance && angle1 <= 359))
+					if ((angle1 >= 0 && angle1 <= upperTolerance) || (angle1 >= lowerTolerance && angle1 <= 359))
 						return true;
 					else
 						return false;
-				}
-				else {
-					if((angle1<=angle2+ANGLE_TOLERENCE ) && (angle1>=angle2-ANGLE_TOLERENCE ))
+				} else {
+					if ((angle1 <= angle2 + ANGLE_TOLERENCE) && (angle1 >= angle2 - ANGLE_TOLERENCE))
 						return true;
 					else
 						return false;
 				}
 			}
-			
+
 		});
 
 		ButtonGroup bg2 = new ButtonGroup();
@@ -469,6 +490,7 @@ public class MainPage {
 		tb.add(selectDirectionCW);
 		tb.add(selectDirectionCCW);
 		tb.addSeparator();
+		tb.add(undoButton);
 		tb.add(submitForces);
 		tb.setVisible(false);
 		return tb;
@@ -494,6 +516,7 @@ public class MainPage {
 					try {
 						BufferedImage bi = ImageIO.read(ch.getSelectedFile());
 						bi = imageResizing(bi, imageWidth, imageHeight);
+						undoImageStack.push(deepCopy(bi));
 						setImage(bi);
 						cutCount = 1;
 						cutsList.clear();
@@ -563,6 +586,7 @@ public class MainPage {
 					File f = chooser.getSelectedFile();
 					ArrayList<String> fileText = readTextFile(f);
 					ArrayList<String> pointsString = getPointsFromText(fileText);
+					drawOriginal();
 					clearFBDData();
 					cutsList.clear();
 					for (int i = 0; i < pointsString.size(); i++) {
@@ -664,6 +688,7 @@ public class MainPage {
 					File f = chooser.getSelectedFile();
 					ArrayList<String> fileText = readTextFile(f);
 					ArrayList<String> forcesString = getForcesFromText(fileText);
+					drawOriginal();
 					fpList.clear();
 					correctForceDataList.clear();
 					forceDataList.clear();
@@ -978,6 +1003,7 @@ public class MainPage {
 
 			@Override
 			public void actionPerformed(ActionEvent e) {
+				current_mode = MODE_DRAW_FORCE;
 				statusLabel.setText("Mode: Define Forces and Moments");
 				deleteCuts.setEnabled(false);
 				deleteAll.setEnabled(false);
@@ -1023,7 +1049,7 @@ public class MainPage {
 
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				// TODO Auto-generated method stub
+				current_mode = MODE_TEST_FORCE;
 				statusLabel.setText("Mode: Define Forces and Moments");
 				deleteCuts.setEnabled(false);
 				deleteAll.setEnabled(false);
@@ -1412,6 +1438,7 @@ public class MainPage {
 					// imageLabel.repaint();
 
 					subImage = deepCopy(canvasImage);
+					undoImageStack.push(deepCopy(canvasImage));
 					subImage = subImage.getSubimage(p.x - arrowLenght, p.y - arrowLenght, arrowLenght * 2,
 							arrowLenght * 2);
 					// subImage = canvasImage.getSubimage(p.x - 50, p.y -
@@ -1462,6 +1489,7 @@ public class MainPage {
 			Rectangle clickThresholdRectangle = new Rectangle(p.x - 15, p.y - 15, 30, 30);
 			if (clickThresholdRectangle.contains(clickedPoint)) {
 
+				undoImageStack.push(deepCopy(canvasImage));
 				Graphics2D g = canvasImage.createGraphics();
 				int arcRadius = arrowLenght / 2;
 				if (currentProperty == EntityProperty.KNOWN)
@@ -1819,6 +1847,54 @@ public class MainPage {
 		boolean isAlphaPremultiplied = cm.isAlphaPremultiplied();
 		WritableRaster raster = bi.copyData(null);
 		return new BufferedImage(cm, raster, isAlphaPremultiplied, null);
+	}
+
+	public class SizedStack<T> extends Stack<T> {
+		private int maxSize;
+
+		public SizedStack(int size) {
+			super();
+			this.maxSize = size;
+		}
+
+		@Override
+		public T push(T object) {
+			// If the stack is too big, remove elements until it's the right
+			// size.
+			while (this.size() >= maxSize) {
+				this.remove(0);
+			}
+			return super.push(object);
+		}
+	}
+
+	private void undo() {
+		if (current_mode == MODE_DRAW_FORCE || current_mode == MODE_TEST_FORCE) {
+
+			Graphics2D g = canvasImage.createGraphics();
+			if(undoImageStack.isEmpty())
+				return;
+			undoImage = undoImageStack.pop();
+			if (undoImage != null) {
+				g.drawImage(undoImage, 0, 0, canvasImage.getWidth(), canvasImage.getHeight(), 0, 0,
+						canvasImage.getWidth(), canvasImage.getHeight(), null);
+				g.dispose();
+				imageLabel.repaint();
+				ForcePoint pointToRemove = forceDataList.get(forceDataList.size() - 1);
+				forceDataList.remove(forceDataList.size() - 1);
+				// if this list does not have this point anymore i.e. all
+				// forces/moments related to it are removed, then mark the point
+				// as
+				// incorrect in fpList
+				if (!fpListContainsLocation(forceDataList, pointToRemove)) {
+					for (ForcePoint p : fpList) {
+						if (p.getLocation().equals(pointToRemove.getLocation())) {
+							p.setCorrect(false);
+						}
+					}
+				}
+			}
+		}
 	}
 
 }
