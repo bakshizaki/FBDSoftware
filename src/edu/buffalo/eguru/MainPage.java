@@ -515,7 +515,7 @@ public class MainPage {
 				if (result == JFileChooser.APPROVE_OPTION) {
 					try {
 						BufferedImage bi = ImageIO.read(ch.getSelectedFile());
-						bi = imageResizing(bi, imageWidth, imageHeight);
+//						bi = imageResizing(bi, imageWidth, imageHeight);
 						undoImageStack.push(deepCopy(bi));
 						setImage(bi);
 						cutCount = 1;
