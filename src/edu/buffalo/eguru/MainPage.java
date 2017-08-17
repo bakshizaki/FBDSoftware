@@ -515,7 +515,7 @@ public class MainPage {
 				if (result == JFileChooser.APPROVE_OPTION) {
 					try {
 						BufferedImage bi = ImageIO.read(ch.getSelectedFile());
-//						bi = imageResizing(bi, imageWidth, imageHeight);
+						// bi = imageResizing(bi, imageWidth, imageHeight);
 						undoImageStack.push(deepCopy(bi));
 						setImage(bi);
 						cutCount = 1;
@@ -1439,11 +1439,20 @@ public class MainPage {
 
 					subImage = deepCopy(canvasImage);
 					undoImageStack.push(deepCopy(canvasImage));
-					subImage = subImage.getSubimage(p.x - arrowLenght, p.y - arrowLenght, arrowLenght * 2,
-							arrowLenght * 2);
-					// subImage = canvasImage.getSubimage(p.x - 50, p.y -
-					// 50, 100, 100);
-					// imageLabel.setIcon(new ImageIcon(subImage));
+					int x1 = (p.x - arrowLenght) < 0 ? 0 : (p.x - arrowLenght);
+					int y1 = (p.y - arrowLenght) < 0 ? 0 : (p.y - arrowLenght);
+					int x2 = (p.x + arrowLenght) > canvasImage.getWidth() ? canvasImage.getWidth()
+							: (p.x + arrowLenght);
+					int y2 = (p.y + arrowLenght) > canvasImage.getHeight() ? canvasImage.getHeight()
+							: (p.y + arrowLenght);
+					int width = x2 - x1;
+					int height = y2 - y1;
+
+					// subImage = subImage.getSubimage(p.x - arrowLenght, p.y -
+					// arrowLenght, arrowLenght * 2,
+					// arrowLenght * 2);
+
+					subImage = subImage.getSubimage(x1, y1, width, height);
 
 				}
 			}
@@ -1456,9 +1465,19 @@ public class MainPage {
 			double new_Y = ((1 - ratio) * firstForcePoint.getY()) + ratio * secondForcePoint.getY();
 			ForcePoint newPoint = new ForcePoint((int) new_X, (int) new_Y);
 			Graphics2D g = canvasImage.createGraphics();
-			g.drawImage(subImage, (int) firstForcePoint.getX() - arrowLenght,
-					(int) firstForcePoint.getY() - arrowLenght, (int) firstForcePoint.getX() + arrowLenght,
-					(int) firstForcePoint.getY() + arrowLenght, 0, 0, arrowLenght * 2, arrowLenght * 2, null);
+			// g.drawImage(subImage, (int) firstForcePoint.getX() - arrowLenght,
+			// (int) firstForcePoint.getY() - arrowLenght, (int)
+			// firstForcePoint.getX() + arrowLenght,
+			// (int) firstForcePoint.getY() + arrowLenght, 0, 0, arrowLenght *
+			// 2, arrowLenght * 2, null);
+
+			ForcePoint p = firstForcePoint;
+			int x1 = (p.x - arrowLenght) < 0 ? 0 : (p.x - arrowLenght);
+			int y1 = (p.y - arrowLenght) < 0 ? 0 : (p.y - arrowLenght);
+			int x2 = (p.x + arrowLenght) > canvasImage.getWidth() ? canvasImage.getWidth() : (p.x + arrowLenght);
+			int y2 = (p.y + arrowLenght) > canvasImage.getHeight() ? canvasImage.getHeight() : (p.y + arrowLenght);
+
+			g.drawImage(subImage, x1, y1, x2, y2, 0, 0, subImage.getWidth(), subImage.getHeight(), null);
 			g.dispose();
 			imageLabel.repaint();
 
@@ -1565,9 +1584,17 @@ public class MainPage {
 				angleDeg = (angleDeg + 360) % 360;
 
 				Graphics2D g = canvasImage.createGraphics();
-				g.drawImage(subImage, (int) firstForcePoint.getX() - arrowLenght,
-						(int) firstForcePoint.getY() - arrowLenght, (int) firstForcePoint.getX() + arrowLenght,
-						(int) firstForcePoint.getY() + arrowLenght, 0, 0, arrowLenght * 2, arrowLenght * 2, null);
+//				g.drawImage(subImage, (int) firstForcePoint.getX() - arrowLenght,
+//						(int) firstForcePoint.getY() - arrowLenght, (int) firstForcePoint.getX() + arrowLenght,
+//						(int) firstForcePoint.getY() + arrowLenght, 0, 0, arrowLenght * 2, arrowLenght * 2, null);
+				ForcePoint p = firstForcePoint;
+				int x1 = (p.x - arrowLenght) < 0 ? 0 : (p.x - arrowLenght);
+				int y1 = (p.y - arrowLenght) < 0 ? 0 : (p.y - arrowLenght);
+				int x2 = (p.x + arrowLenght) > canvasImage.getWidth() ? canvasImage.getWidth() : (p.x + arrowLenght);
+				int y2 = (p.y + arrowLenght) > canvasImage.getHeight() ? canvasImage.getHeight() : (p.y + arrowLenght);
+
+				g.drawImage(subImage, x1, y1, x2, y2, 0, 0, subImage.getWidth(), subImage.getHeight(), null);
+
 				g.setColor(Color.BLACK);
 				g.drawString(Integer.toString((int) angleDeg) + "°", firstForcePoint.x - 15, firstForcePoint.y - 15);
 				g.dispose();
@@ -1872,7 +1899,7 @@ public class MainPage {
 		if (current_mode == MODE_DRAW_FORCE || current_mode == MODE_TEST_FORCE) {
 
 			Graphics2D g = canvasImage.createGraphics();
-			if(undoImageStack.isEmpty())
+			if (undoImageStack.isEmpty())
 				return;
 			undoImage = undoImageStack.pop();
 			if (undoImage != null) {
