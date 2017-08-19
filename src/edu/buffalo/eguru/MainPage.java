@@ -126,9 +126,12 @@ public class MainPage {
 
 	JToolBar forceToolbar = null;
 
-	static final Color KNOWN_FORCE_COLOR = new Color(0, 153, 51);
-	static final Color UNKNOWN_FORCE_COLOR = Color.RED;
-	Color forceColor = null;
+	// static final Color KNOWN_FORCE_COLOR = new Color(0, 153, 51);
+	// static final Color UNKNOWN_FORCE_COLOR = Color.RED;
+	static final Color DRAWING_COLOR = Color.BLACK;
+	static final Color CORRECT_COLOR = new Color(0, 153, 51);
+	static final Color INCORRECT_COLOR = Color.RED;
+	Color currentColor = null;
 
 	ForcePoint.EntityType currentType = null;
 	ForcePoint.EntityProperty currentProperty = null;
@@ -388,23 +391,43 @@ public class MainPage {
 				// To check correctness we have to check every correct
 				// ForcePoint from A is in B, and every correct ForcePoint frmo
 				// B is in A.
+				
+				submitForces.setEnabled(false);
+				undoButton.setEnabled(false);
 
 				boolean forceFinalAnswer = true;
+				
+				drawOriginal();
+				for(ForcePoint fp: fpList) {
+					displayForcePoint(fp.x, fp.y);
+				}
 
 				for (ForcePoint p : correctForceDataList) {
 					if (p.isCorrect()) {
-						if (!forceListContains(forceDataList, p))
+						if (!forceListContains(forceDataList, p)) {
 							forceFinalAnswer = false;
+							currentColor = INCORRECT_COLOR;
+							displayCircle(p.x, p.y);
+						}
+							
 					}
 				}
 				for (ForcePoint p : forceDataList) {
 					if (p.isCorrect()) {
-						if (!forceListContains(correctForceDataList, p))
+						if (!forceListContains(correctForceDataList, p)) {
 							forceFinalAnswer = false;
+							currentColor = INCORRECT_COLOR;
+						} else {
+							currentColor = CORRECT_COLOR;
+						}
+						if (p.type == EntityType.FORCE)
+							displayArrow(p.x, p.y, p.angle, p.property);
+						else
+							displayMoment(p.x, p.y, p.direction, p.property);
 					}
 				}
 
-				forceDataList.clear();
+				 forceDataList.clear();
 
 				if (forceFinalAnswer == true)
 					statusLabel.setText("Force Correct");
@@ -692,6 +715,7 @@ public class MainPage {
 					fpList.clear();
 					correctForceDataList.clear();
 					forceDataList.clear();
+					currentColor = DRAWING_COLOR;
 					for (int i = 0; i < forcesString.size(); i++) {
 						ForcePoint fp = getFpFromString(forcesString.get(i));
 						correctForceDataList.add(fp);
@@ -714,67 +738,6 @@ public class MainPage {
 
 			}
 
-			private void displayMoment(int x, int y, EntityDirection direction, EntityProperty property) {
-				Color arcColor = null;
-				currentProperty = property;
-				currentDirection = direction;
-				Point p = new Point(x, y);
-				Graphics2D g = canvasImage.createGraphics();
-				int arcRadius = arrowLenght / 2;
-				if (currentProperty == EntityProperty.KNOWN)
-					arcColor = KNOWN_FORCE_COLOR;
-				else if (currentProperty == EntityProperty.UNKNOWN)
-					arcColor = UNKNOWN_FORCE_COLOR;
-				g.setColor(arcColor);
-
-				if (currentDirection == EntityDirection.CLOCKWISE) {
-					g.drawArc(p.x - arcRadius, p.y - arcRadius, 2 * arcRadius, 2 * arcRadius, 300, 120);
-
-					Point arcArrowStartPoint = new Point((int) (arcRadius * Math.cos(Math.toRadians(315))),
-							(int) (-1 * arcRadius * Math.sin(Math.toRadians(315))));
-					arcArrowStartPoint = new Point(p.x + arcArrowStartPoint.x, p.y + arcArrowStartPoint.y);
-					Point arcArrowEndPoint = new Point((int) (arcRadius * Math.cos(Math.toRadians(300))),
-							(int) (-1 * arcRadius * Math.sin(Math.toRadians(300))));
-					arcArrowEndPoint = new Point(p.x + arcArrowEndPoint.x, p.y + arcArrowEndPoint.y);
-					drawArrow(arcArrowStartPoint, arcArrowEndPoint);
-
-				} else if (currentDirection == EntityDirection.ANTICLOCKWISE) {
-					g.drawArc(p.x - arcRadius, p.y - arcRadius, 2 * arcRadius, 2 * arcRadius, 120, 120);
-
-					Point arcArrowStartPoint = new Point((int) (arcRadius * Math.cos(Math.toRadians(135))),
-							(int) (-1 * arcRadius * Math.sin(Math.toRadians(135))));
-					arcArrowStartPoint = new Point(p.x + arcArrowStartPoint.x, p.y + arcArrowStartPoint.y);
-					Point arcArrowEndPoint = new Point((int) (arcRadius * Math.cos(Math.toRadians(120))),
-							(int) (-1 * arcRadius * Math.sin(Math.toRadians(120))));
-					arcArrowEndPoint = new Point(p.x + arcArrowEndPoint.x, p.y + arcArrowEndPoint.y);
-					drawArrow(arcArrowStartPoint, arcArrowEndPoint);
-
-				}
-
-				g.dispose();
-				imageLabel.repaint();
-
-			}
-
-			private void displayArrow(int x, int y, int angle, EntityProperty property) {
-				Point p1 = new Point(x, y);
-				int new_X = (int) (arrowLineLength * Math.cos(Math.toRadians(angle)));
-				int new_Y = (int) (-1 * arrowLineLength * Math.sin(Math.toRadians(angle)));
-				Point p2 = new Point(x + new_X, y + new_Y);
-				currentProperty = property;
-				drawArrow(p1, p2);
-
-			}
-
-			private void displayForcePoint(int x, int y) {
-				Graphics2D g = canvasImage.createGraphics();
-				g.setColor(Color.black);
-
-				g.drawImage(forcePointImage, x - 15, y - 15, null);
-				g.dispose();
-				imageLabel.repaint();
-
-			}
 		});
 
 		JMenuItem exitItem = new JMenuItem("Exit");
@@ -1010,8 +973,8 @@ public class MainPage {
 				restartFBD.setEnabled(false);
 
 				clearFBDDefinigVariables();
-				// drawOriginal();
-				// drawForcePoints(fpList);
+				 drawOriginal();
+				 drawForcePoints(fpList);
 
 				// setup defauls of forceToolbar
 				selectForce.setSelected(true);
@@ -1031,7 +994,7 @@ public class MainPage {
 				forceToolbar.setVisible(true);
 
 				// SET FORCE COLOR
-				forceColor = KNOWN_FORCE_COLOR;
+				currentColor = DRAWING_COLOR;
 
 				// isFBDAnswered = false;
 				for (MouseListener m : imageLabel.getMouseListeners()) {
@@ -1050,7 +1013,7 @@ public class MainPage {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				current_mode = MODE_TEST_FORCE;
-				statusLabel.setText("Mode: Define Forces and Moments");
+				statusLabel.setText("Mode: Test Mode Forces/Moments");
 				deleteCuts.setEnabled(false);
 				deleteAll.setEnabled(false);
 				restartFBD.setEnabled(false);
@@ -1069,12 +1032,17 @@ public class MainPage {
 				selectDirectionCW.setEnabled(false);
 				selectDirectionCCW.setEnabled(false);
 				submitForces.setVisible(true);
+				submitForces.setEnabled(true);
+				undoButton.setEnabled(true);
 
 				currentType = EntityType.FORCE;
 				currentProperty = EntityProperty.KNOWN;
 				currentDirection = EntityDirection.CLOCKWISE;
 
 				forceToolbar.setVisible(true);
+
+				// SET FORCE COLOR
+				currentColor = DRAWING_COLOR;
 
 				if (forceDataList.size() > 0) {
 					correctForceDataList = new ArrayList<ForcePoint>(forceDataList);
@@ -1511,10 +1479,18 @@ public class MainPage {
 				undoImageStack.push(deepCopy(canvasImage));
 				Graphics2D g = canvasImage.createGraphics();
 				int arcRadius = arrowLenght / 2;
-				if (currentProperty == EntityProperty.KNOWN)
-					arcColor = KNOWN_FORCE_COLOR;
-				else if (currentProperty == EntityProperty.UNKNOWN)
-					arcColor = UNKNOWN_FORCE_COLOR;
+				arcColor = currentColor;
+				if (currentProperty == EntityProperty.KNOWN) {
+					Stroke dark = new BasicStroke(2, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL);
+					g.setStroke(dark);
+				}
+
+				else if (currentProperty == EntityProperty.UNKNOWN) {
+					Stroke dashed = new BasicStroke(2, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0,
+							new float[] { 4 }, 0);
+					g.setStroke(dashed);
+				}
+
 				g.setColor(arcColor);
 
 				if (currentDirection == EntityDirection.CLOCKWISE) {
@@ -1584,9 +1560,12 @@ public class MainPage {
 				angleDeg = (angleDeg + 360) % 360;
 
 				Graphics2D g = canvasImage.createGraphics();
-//				g.drawImage(subImage, (int) firstForcePoint.getX() - arrowLenght,
-//						(int) firstForcePoint.getY() - arrowLenght, (int) firstForcePoint.getX() + arrowLenght,
-//						(int) firstForcePoint.getY() + arrowLenght, 0, 0, arrowLenght * 2, arrowLenght * 2, null);
+				// g.drawImage(subImage, (int) firstForcePoint.getX() -
+				// arrowLenght,
+				// (int) firstForcePoint.getY() - arrowLenght, (int)
+				// firstForcePoint.getX() + arrowLenght,
+				// (int) firstForcePoint.getY() + arrowLenght, 0, 0, arrowLenght
+				// * 2, arrowLenght * 2, null);
 				ForcePoint p = firstForcePoint;
 				int x1 = (p.x - arrowLenght) < 0 ? 0 : (p.x - arrowLenght);
 				int y1 = (p.y - arrowLenght) < 0 ? 0 : (p.y - arrowLenght);
@@ -1840,11 +1819,16 @@ public class MainPage {
 		Graphics2D g2d = canvasImage.createGraphics();
 		AffineTransform tx = new AffineTransform();
 		Line2D.Double line = new Line2D.Double(x1, y1, x2, y2);
+		arrowColor = currentColor;
+		if (currentProperty == EntityProperty.KNOWN) {
+			Stroke dark = new BasicStroke(2, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0);
+			g2d.setStroke(dark);
+		}
 
-		if (currentProperty == EntityProperty.KNOWN)
-			arrowColor = KNOWN_FORCE_COLOR;
-		else if (currentProperty == EntityProperty.UNKNOWN)
-			arrowColor = UNKNOWN_FORCE_COLOR;
+		else if (currentProperty == EntityProperty.UNKNOWN) {
+			Stroke dashed = new BasicStroke(2, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0, new float[] { 4 }, 0);
+			g2d.setStroke(dashed);
+		}
 
 		g2d.setColor(arrowColor);
 		g2d.drawLine(x1, y1, x2, y2);
@@ -1922,6 +1906,81 @@ public class MainPage {
 				}
 			}
 		}
+	}
+
+	private void displayMoment(int x, int y, EntityDirection direction, EntityProperty property) {
+		Color arcColor = null;
+		currentProperty = property;
+		currentDirection = direction;
+		Point p = new Point(x, y);
+		Graphics2D g = canvasImage.createGraphics();
+		int arcRadius = arrowLenght / 2;
+		arcColor = currentColor;
+		if (currentProperty == EntityProperty.KNOWN) {
+			Stroke dark = new BasicStroke(2, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL);
+			g.setStroke(dark);
+		} else if (currentProperty == EntityProperty.UNKNOWN) {
+			Stroke dashed = new BasicStroke(2, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0, new float[] { 4 }, 0);
+			g.setStroke(dashed);
+		}
+		g.setColor(arcColor);
+
+		if (currentDirection == EntityDirection.CLOCKWISE) {
+			g.drawArc(p.x - arcRadius, p.y - arcRadius, 2 * arcRadius, 2 * arcRadius, 300, 120);
+
+			Point arcArrowStartPoint = new Point((int) (arcRadius * Math.cos(Math.toRadians(315))),
+					(int) (-1 * arcRadius * Math.sin(Math.toRadians(315))));
+			arcArrowStartPoint = new Point(p.x + arcArrowStartPoint.x, p.y + arcArrowStartPoint.y);
+			Point arcArrowEndPoint = new Point((int) (arcRadius * Math.cos(Math.toRadians(300))),
+					(int) (-1 * arcRadius * Math.sin(Math.toRadians(300))));
+			arcArrowEndPoint = new Point(p.x + arcArrowEndPoint.x, p.y + arcArrowEndPoint.y);
+			drawArrow(arcArrowStartPoint, arcArrowEndPoint);
+
+		} else if (currentDirection == EntityDirection.ANTICLOCKWISE) {
+			g.drawArc(p.x - arcRadius, p.y - arcRadius, 2 * arcRadius, 2 * arcRadius, 120, 120);
+
+			Point arcArrowStartPoint = new Point((int) (arcRadius * Math.cos(Math.toRadians(135))),
+					(int) (-1 * arcRadius * Math.sin(Math.toRadians(135))));
+			arcArrowStartPoint = new Point(p.x + arcArrowStartPoint.x, p.y + arcArrowStartPoint.y);
+			Point arcArrowEndPoint = new Point((int) (arcRadius * Math.cos(Math.toRadians(120))),
+					(int) (-1 * arcRadius * Math.sin(Math.toRadians(120))));
+			arcArrowEndPoint = new Point(p.x + arcArrowEndPoint.x, p.y + arcArrowEndPoint.y);
+			drawArrow(arcArrowStartPoint, arcArrowEndPoint);
+
+		}
+
+		g.dispose();
+		imageLabel.repaint();
+
+	}
+
+	private void displayArrow(int x, int y, int angle, EntityProperty property) {
+		Point p1 = new Point(x, y);
+		int new_X = (int) (arrowLineLength * Math.cos(Math.toRadians(angle)));
+		int new_Y = (int) (-1 * arrowLineLength * Math.sin(Math.toRadians(angle)));
+		Point p2 = new Point(x + new_X, y + new_Y);
+		currentProperty = property;
+		drawArrow(p1, p2);
+
+	}
+
+	private void displayForcePoint(int x, int y) {
+		Graphics2D g = canvasImage.createGraphics();
+		g.setColor(Color.black);
+
+		g.drawImage(forcePointImage, x - 15, y - 15, null);
+		g.dispose();
+		imageLabel.repaint();
+
+	}
+	
+	private void displayCircle(int x, int y) {
+		Graphics2D g = canvasImage.createGraphics();
+		g.setColor(currentColor);
+		g.drawOval(x-15, y-15, 30, 30);
+		g.dispose();
+		imageLabel.repaint();
+		
 	}
 
 }
