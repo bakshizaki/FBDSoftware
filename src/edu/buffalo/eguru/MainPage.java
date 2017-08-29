@@ -1494,27 +1494,9 @@ public class MainPage {
 				g.setColor(arcColor);
 
 				if (currentDirection == EntityDirection.CLOCKWISE) {
-					g.drawArc(p.x - arcRadius, p.y - arcRadius, 2 * arcRadius, 2 * arcRadius, 300, 120);
-
-					Point arcArrowStartPoint = new Point((int) (arcRadius * Math.cos(Math.toRadians(315))),
-							(int) (-1 * arcRadius * Math.sin(Math.toRadians(315))));
-					arcArrowStartPoint = new Point(p.x + arcArrowStartPoint.x, p.y + arcArrowStartPoint.y);
-					Point arcArrowEndPoint = new Point((int) (arcRadius * Math.cos(Math.toRadians(300))),
-							(int) (-1 * arcRadius * Math.sin(Math.toRadians(300))));
-					arcArrowEndPoint = new Point(p.x + arcArrowEndPoint.x, p.y + arcArrowEndPoint.y);
-					drawArrow(arcArrowStartPoint, arcArrowEndPoint);
-
+					drawClockwiseMoment(g, p, arcRadius);
 				} else if (currentDirection == EntityDirection.ANTICLOCKWISE) {
-					g.drawArc(p.x - arcRadius, p.y - arcRadius, 2 * arcRadius, 2 * arcRadius, 120, 120);
-
-					Point arcArrowStartPoint = new Point((int) (arcRadius * Math.cos(Math.toRadians(135))),
-							(int) (-1 * arcRadius * Math.sin(Math.toRadians(135))));
-					arcArrowStartPoint = new Point(p.x + arcArrowStartPoint.x, p.y + arcArrowStartPoint.y);
-					Point arcArrowEndPoint = new Point((int) (arcRadius * Math.cos(Math.toRadians(120))),
-							(int) (-1 * arcRadius * Math.sin(Math.toRadians(120))));
-					arcArrowEndPoint = new Point(p.x + arcArrowEndPoint.x, p.y + arcArrowEndPoint.y);
-					drawArrow(arcArrowStartPoint, arcArrowEndPoint);
-
+					drawAntiClockwiseMoment(g, p, arcRadius);
 				}
 
 				g.dispose();
@@ -1926,27 +1908,9 @@ public class MainPage {
 		g.setColor(arcColor);
 
 		if (currentDirection == EntityDirection.CLOCKWISE) {
-			g.drawArc(p.x - arcRadius, p.y - arcRadius, 2 * arcRadius, 2 * arcRadius, 300, 120);
-
-			Point arcArrowStartPoint = new Point((int) (arcRadius * Math.cos(Math.toRadians(315))),
-					(int) (-1 * arcRadius * Math.sin(Math.toRadians(315))));
-			arcArrowStartPoint = new Point(p.x + arcArrowStartPoint.x, p.y + arcArrowStartPoint.y);
-			Point arcArrowEndPoint = new Point((int) (arcRadius * Math.cos(Math.toRadians(300))),
-					(int) (-1 * arcRadius * Math.sin(Math.toRadians(300))));
-			arcArrowEndPoint = new Point(p.x + arcArrowEndPoint.x, p.y + arcArrowEndPoint.y);
-			drawArrow(arcArrowStartPoint, arcArrowEndPoint);
-
+			drawClockwiseMoment(g, p, arcRadius);
 		} else if (currentDirection == EntityDirection.ANTICLOCKWISE) {
-			g.drawArc(p.x - arcRadius, p.y - arcRadius, 2 * arcRadius, 2 * arcRadius, 120, 120);
-
-			Point arcArrowStartPoint = new Point((int) (arcRadius * Math.cos(Math.toRadians(135))),
-					(int) (-1 * arcRadius * Math.sin(Math.toRadians(135))));
-			arcArrowStartPoint = new Point(p.x + arcArrowStartPoint.x, p.y + arcArrowStartPoint.y);
-			Point arcArrowEndPoint = new Point((int) (arcRadius * Math.cos(Math.toRadians(120))),
-					(int) (-1 * arcRadius * Math.sin(Math.toRadians(120))));
-			arcArrowEndPoint = new Point(p.x + arcArrowEndPoint.x, p.y + arcArrowEndPoint.y);
-			drawArrow(arcArrowStartPoint, arcArrowEndPoint);
-
+			drawAntiClockwiseMoment(g, p, arcRadius);
 		}
 
 		g.dispose();
@@ -1981,6 +1945,32 @@ public class MainPage {
 		g.dispose();
 		imageLabel.repaint();
 		
+	}
+	
+	void drawClockwiseMoment(Graphics2D g, Point p, int arcRadius) {
+		g.drawArc(p.x - arcRadius, p.y - arcRadius, 2 * arcRadius, 2 * arcRadius, 120, 120);
+
+		Point arcArrowStartPoint = new Point((int) (arcRadius * Math.cos(Math.toRadians(135))),
+				(int) (-1 * arcRadius * Math.sin(Math.toRadians(135))));
+		arcArrowStartPoint = new Point(p.x + arcArrowStartPoint.x, p.y + arcArrowStartPoint.y);
+		Point arcArrowEndPoint = new Point((int) (arcRadius * Math.cos(Math.toRadians(120))),
+				(int) (-1 * arcRadius * Math.sin(Math.toRadians(120))));
+		arcArrowEndPoint = new Point(p.x + arcArrowEndPoint.x, p.y + arcArrowEndPoint.y);
+		drawArrow(arcArrowStartPoint, arcArrowEndPoint);
+
+	}
+
+	void drawAntiClockwiseMoment(Graphics2D g, Point p, int arcRadius) {
+		g.drawArc(p.x - arcRadius, p.y - arcRadius, 2 * arcRadius, 2 * arcRadius, 300, 120);
+
+		Point arcArrowStartPoint = new Point((int) (arcRadius * Math.cos(Math.toRadians(55))),
+				(int) (-1 * arcRadius * Math.sin(Math.toRadians(55))));
+		arcArrowStartPoint = new Point(p.x + arcArrowStartPoint.x, p.y + arcArrowStartPoint.y);
+		Point arcArrowEndPoint = new Point((int) (arcRadius * Math.cos(Math.toRadians(60))),
+				(int) (-1 * arcRadius * Math.sin(Math.toRadians(60))));
+		arcArrowEndPoint = new Point(p.x + arcArrowEndPoint.x, p.y + arcArrowEndPoint.y);
+		drawArrow(arcArrowStartPoint, arcArrowEndPoint);
+
 	}
 
 }
