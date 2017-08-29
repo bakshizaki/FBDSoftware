@@ -459,7 +459,7 @@ public class MainPage {
 				for (ForcePoint listPoint : forceList) {
 					if (p.x == listPoint.x && p.y == listPoint.y && listPoint.isCorrect == true
 							&& p.type == listPoint.type && p.getProperty() == listPoint.getProperty()
-							&& equalWithTolerance(p.getAngle(), listPoint.getAngle()))
+									&& (equalWithTolerance(p.getAngle(), listPoint.getAngle()) || equalWithTolerance(p.getAngle(), (180+listPoint.getAngle())%360)))
 						return true;
 				}
 				return false;
