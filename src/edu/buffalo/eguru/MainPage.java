@@ -391,14 +391,14 @@ public class MainPage {
 				// To check correctness we have to check every correct
 				// ForcePoint from A is in B, and every correct ForcePoint frmo
 				// B is in A.
-				
+
 				submitForces.setEnabled(false);
 				undoButton.setEnabled(false);
 
 				boolean forceFinalAnswer = true;
-				
+
 				drawOriginal();
-				for(ForcePoint fp: fpList) {
+				for (ForcePoint fp : fpList) {
 					displayForcePoint(fp.x, fp.y);
 				}
 
@@ -409,7 +409,7 @@ public class MainPage {
 							currentColor = INCORRECT_COLOR;
 							displayCircle(p.x, p.y);
 						}
-							
+
 					}
 				}
 				for (ForcePoint p : forceDataList) {
@@ -427,7 +427,7 @@ public class MainPage {
 					}
 				}
 
-				 forceDataList.clear();
+				forceDataList.clear();
 
 				if (forceFinalAnswer == true)
 					statusLabel.setText("Force Correct");
@@ -457,10 +457,21 @@ public class MainPage {
 
 			private boolean forceListContainsForce(ArrayList<ForcePoint> forceList, ForcePoint p) {
 				for (ForcePoint listPoint : forceList) {
-					if (p.x == listPoint.x && p.y == listPoint.y && listPoint.isCorrect == true
-							&& p.type == listPoint.type && p.getProperty() == listPoint.getProperty()
-									&& (equalWithTolerance(p.getAngle(), listPoint.getAngle()) || equalWithTolerance(p.getAngle(), (180+listPoint.getAngle())%360)))
-						return true;
+					// if unknown then check angle for angle+180 as well, else
+					// just compare normally
+					if (p.getProperty() == EntityProperty.UNKNOWN) {
+						if (p.x == listPoint.x && p.y == listPoint.y && listPoint.isCorrect == true
+								&& p.type == listPoint.type && p.getProperty() == listPoint.getProperty()
+								&& (equalWithTolerance(p.getAngle(), listPoint.getAngle())
+										|| equalWithTolerance(p.getAngle(), (180 + listPoint.getAngle()) % 360)))
+							return true;
+					} else {
+						if (p.x == listPoint.x && p.y == listPoint.y && listPoint.isCorrect == true
+								&& p.type == listPoint.type && p.getProperty() == listPoint.getProperty()
+								&& (equalWithTolerance(p.getAngle(), listPoint.getAngle())))
+							return true;
+					}
+
 				}
 				return false;
 			}
@@ -973,8 +984,8 @@ public class MainPage {
 				restartFBD.setEnabled(false);
 
 				clearFBDDefinigVariables();
-				 drawOriginal();
-				 drawForcePoints(fpList);
+				drawOriginal();
+				drawForcePoints(fpList);
 
 				// setup defauls of forceToolbar
 				selectForce.setSelected(true);
@@ -1937,16 +1948,16 @@ public class MainPage {
 		imageLabel.repaint();
 
 	}
-	
+
 	private void displayCircle(int x, int y) {
 		Graphics2D g = canvasImage.createGraphics();
 		g.setColor(currentColor);
-		g.drawOval(x-15, y-15, 30, 30);
+		g.drawOval(x - 15, y - 15, 30, 30);
 		g.dispose();
 		imageLabel.repaint();
-		
+
 	}
-	
+
 	void drawClockwiseMoment(Graphics2D g, Point p, int arcRadius) {
 		g.drawArc(p.x - arcRadius, p.y - arcRadius, 2 * arcRadius, 2 * arcRadius, 120, 120);
 
