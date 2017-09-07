@@ -447,10 +447,16 @@ public class MainPage {
 
 			private boolean forceListContainsMoment(ArrayList<ForcePoint> forceList, ForcePoint p) {
 				for (ForcePoint listPoint : forceList) {
-					if (p.x == listPoint.x && p.y == listPoint.y && listPoint.isCorrect == true
-							&& p.type == listPoint.type && p.getProperty() == listPoint.getProperty()
-							&& p.getDirection() == listPoint.getDirection())
-						return true;
+					if(p.getProperty() == EntityProperty.UNKNOWN) {
+						if (p.x == listPoint.x && p.y == listPoint.y && listPoint.isCorrect == true && p.type == listPoint.type
+								&& p.getProperty() == listPoint.getProperty())
+							return true;
+					}
+					else {
+						if (p.x == listPoint.x && p.y == listPoint.y && listPoint.isCorrect == true && p.type == listPoint.type
+								&& p.getProperty() == listPoint.getProperty() && p.getDirection() == listPoint.getDirection())
+							return true;	
+					}
 				}
 				return false;
 			}
